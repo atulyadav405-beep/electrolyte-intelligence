@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electrolyte Intelligence — Market Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a08;
+  --bg-2: #111110;
+  --bg-3: #1a1a17;
+  --bg-4: #222220;
+  --line: rgba(255,255,255,0.08);
+  --line-2: rgba(255,255,255,0.14);
+  --text: #f0ede8;
+  --text-2: #9a9690;
+  --text-3: #5a5752;
+  --accent: #c8b882;
+  --accent-2: #8aad8a;
+  --accent-3: #c47c5a;
+  --red: #d44;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Geist', system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── TICKER ─── */
+.ticker-wrap {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  overflow: hidden;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.ticker-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  padding: 0 16px;
+  border-right: 1px solid var(--line);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ticker-track {
+  display: flex;
+  gap: 0;
+  animation: ticker 40s linear infinite;
+  white-space: nowrap;
+}
+.ticker-track:hover { animation-play-state: paused; }
+.ticker-item {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+  padding: 0 24px;
+  border-right: 1px solid var(--line);
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ticker-item .val { color: var(--text); }
+.ticker-item .up { color: var(--accent-2); }
+.ticker-item .dn { color: var(--accent-3); }
+.ticker-item .hot { color: var(--red); }
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ─── NAV ─── */
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 48px;
+  border-bottom: 1px solid var(--line);
+}
+.nav-brand {
+  display: flex;
+  flex-direction: column;
+}
+.nav-brand .brand-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.nav-brand .brand-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+.nav-links a {
+  font-size: 12px;
+  color: var(--text-3);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.date-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line-2);
+  padding: 5px 12px;
+  border-radius: 2px;
+}
+.refresh-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(200,184,130,0.25);
+  padding: 6px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.refresh-btn:hover {
+  background: rgba(200,184,130,0.08);
+  border-color: rgba(200,184,130,0.5);
+}
+.spin { display: inline-block; }
+.spinning .spin { animation: rotate 0.8s linear infinite; }
+@keyframes rotate { to { transform: rotate(360deg); } }
+
+/* ─── HERO ─── */
+.hero {
+  padding: 64px 48px 48px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: end;
+}
+.hero-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kicker-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 4vw, 56px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+.hero h1 em { font-style: italic; color: var(--accent); }
+.hero-desc {
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 1.7;
+  max-width: 420px;
+}
+.hero-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-self: stretch;
+  justify-content: center;
+}
+.hero-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.hero-stat-row:first-child { border-top: 1px solid var(--line); }
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.stat-delta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-2);
+  margin-left: 8px;
+}
+.stat-delta.dn { color: var(--accent-3); }
+
+/* ─── ALERT BANNER ─── */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(212,68,68,0.06);
+  border-bottom: 1px solid rgba(212,68,68,0.2);
+  padding: 12px 48px;
+}
+.alert-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--red);
+  border: 1px solid rgba(212,68,68,0.4);
+  padding: 3px 8px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.alert-text { font-size: 12px; color: var(--text-2); }
+.alert-text strong { color: var(--text); }
+
+/* ─── MAIN GRID ─── */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: calc(100vh - 200px);
+}
+
+.content-area {
+  border-right: 1px solid var(--line);
+  padding: 0;
+}
+
+/* ─── SECTION TABS ─── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.tab-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 16px 24px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text-2); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ─── PANELS ─── */
+.panel { display: none; padding: 32px 40px; }
+.panel.active { display: block; }
+
+.panel-section { margin-bottom: 40px; }
+.panel-section-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ─── INSIGHT CARDS ─── */
+.insight-card {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.insight-card:hover { border-color: var(--line-2); }
+.insight-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  gap: 16px;
+  cursor: pointer;
+}
+.insight-card-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.4;
+  flex: 1;
+}
+.urgency-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.urg-critical { background: rgba(212,68,68,0.12); color: #e06060; border: 1px solid rgba(212,68,68,0.25); }
+.urg-high { background: rgba(196,124,90,0.12); color: var(--accent-3); border: 1px solid rgba(196,124,90,0.25); }
+.urg-medium { background: rgba(200,184,130,0.1); color: var(--accent); border: 1px solid rgba(200,184,130,0.2); }
+.urg-low { background: rgba(138,173,138,0.1); color: var(--accent-2); border: 1px solid rgba(138,173,138,0.2); }
+
+.insight-card-body {
+  padding: 0 18px 16px;
+  display: none;
+}
+.insight-card-body.open { display: block; }
+.insight-block { margin-bottom: 12px; }
+.insight-block-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.insight-block-text { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+.insight-block-text strong { color: var(--text); font-weight: 500; }
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.card-action-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(200,184,130,0.2);
+  padding: 6px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.card-action-btn:hover {
+  background: rgba(200,184,130,0.08);
+  border-color: rgba(200,184,130,0.4);
+}
+.card-tag-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.card-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  background: var(--bg-3);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+/* ─── COMPETITOR GRID ─── */
+.comp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.comp-card {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+.comp-card:hover { border-color: var(--line-2); }
+.comp-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.comp-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; margin-bottom: 10px; }
+.threat-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+/* ─── AI FETCH AREA ─── */
+.ai-fetch-area { margin-top: 24px; }
+.ai-fetch-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  padding: 10px 20px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+.ai-fetch-btn:hover { background: var(--bg-4); border-color: var(--accent); color: var(--accent); }
+.ai-output { margin-top: 16px; }
+
+/* ─── SKELETON ─── */
+.sk {
+  background: var(--bg-3);
+  border-radius: 2px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.sk-line { height: 12px; margin-bottom: 8px; }
+.sk-card { height: 80px; margin-bottom: 10px; }
+
+/* ─── SIDEBAR ─── */
+.sidebar { padding: 0; }
+
+.sidebar-block {
+  padding: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.sidebar-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 16px;
+}
+
+/* ─── HEAT MAP ─── */
+.heat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.heat-label { font-size: 12px; color: var(--text-2); flex: 1; }
+.heat-bar-wrap { flex: 1; background: var(--bg-3); border-radius: 1px; height: 4px; overflow: hidden; }
+.heat-bar { height: 4px; border-radius: 1px; transition: width 0.8s ease; }
+.heat-val {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ─── CALENDAR ─── */
+.cal-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.cal-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  min-width: 32px;
+  padding-top: 2px;
+}
+.cal-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.cal-text { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.cal-text strong { color: var(--text); font-weight: 500; }
+
+/* ─── ACTIONS PANEL ─── */
+.action-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: flex-start;
+}
+.action-num {
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--bg-4);
+  line-height: 1;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+.action-content { flex: 1; }
+.action-title { font-size: 14px; color: var(--text); margin-bottom: 4px; }
+.action-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.action-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.action-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+.action-cta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(200,184,130,0.25);
+  padding: 4px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.action-cta:hover { background: rgba(200,184,130,0.08); }
+
+/* ─── FOOTER ─── */
+footer {
+  border-top: 1px solid var(--line);
+  padding: 20px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-left {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+}
+.footer-right {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeUp 0.5s ease forwards; opacity: 0; }
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+  nav { padding: 16px 20px; }
+  .nav-links { display: none; }
+  .hero { grid-template-columns: 1fr; padding: 40px 20px 32px; gap: 32px; }
+  .main { grid-template-columns: 1fr; }
+  .sidebar { border-top: 1px solid var(--line); }
+  .panel { padding: 24px 20px; }
+  .alert-banner { padding: 10px 20px; }
+  .comp-grid { grid-template-columns: 1fr; }
+  footer { flex-direction: column; gap: 8px; padding: 16px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-label">LIVE</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="ticker-track" id="ticker">
+      <div class="ticker-item">India market size <span class="val up">$81M</span> <span class="up">↑ 13.9% CAGR</span></div>
+      <div class="ticker-item">Peak temp India <span class="val hot">46.9°C</span> Akola MH</div>
+      <div class="ticker-item">Global electrolyte mkt <span class="val">$43B</span> 2026</div>
+      <div class="ticker-item">IPL 2026 <span class="val up">LIVE</span> Mar 28 – May 31</div>
+      <div class="ticker-item">Fast&amp;Up × NOTO <span class="val">Electrolyte Popsicles</span></div>
+      <div class="ticker-item">Powerade Power Water <span class="val">India launch Nov 2025</span></div>
+      <div class="ticker-item">Heat stroke alerts <span class="val hot">NDMA</span> active</div>
+      <div class="ticker-item">Clean-label shift <span class="val up">Accelerating</span></div>
+      <div class="ticker-item">Zero-sugar formats <span class="val up">↑ fastest growing</span></div>
+      <div class="ticker-item">India market size <span class="val up">$81M</span> <span class="up">↑ 13.9% CAGR</span></div>
+      <div class="ticker-item">Peak temp India <span class="val hot">46.9°C</span> Akola MH</div>
+      <div class="ticker-item">Global electrolyte mkt <span class="val">$43B</span> 2026</div>
+      <div class="ticker-item">IPL 2026 <span class="val up">LIVE</span> Mar 28 – May 31</div>
+      <div class="ticker-item">Fast&amp;Up × NOTO <span class="val">Electrolyte Popsicles</span></div>
+      <div class="ticker-item">Powerade Power Water <span class="val">India launch Nov 2025</span></div>
+      <div class="ticker-item">Heat stroke alerts <span class="val hot">NDMA</span> active</div>
+      <div class="ticker-item">Clean-label shift <span class="val up">Accelerating</span></div>
+      <div class="ticker-item">Zero-sugar formats <span class="val up">↑ fastest growing</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <span class="brand-name">Electrolyte Intelligence</span>
+    <span class="brand-sub">Market Briefing System</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#india">India</a></li>
+    <li><a href="#global">Global</a></li>
+    <li><a href="#competitors">Competitors</a></li>
+    <li><a href="#actions">Actions</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="date-pill" id="datePill">Loading...</div>
+    <button class="refresh-btn" onclick="runRefresh()" id="refreshBtn">
+      <span class="spin">↻</span> Refresh
+    </button>
+  </div>
+</nav>
+
+<!-- ALERT BANNER -->
+<div class="alert-banner">
+  <span class="alert-tag">⚠ Alert</span>
+  <span class="alert-text"><strong>Heatwave critical:</strong> 98 of world's 100 hottest cities in India right now. Temperatures at 46.9°C. NDMA alerts active. High-urgency marketing window — act within 7 days.</span>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="fade-in">
+    <div class="hero-kicker"><div class="kicker-dot"></div> Daily intelligence briefing</div>
+    <h1>What's moving the <em>electrolyte</em> category today</h1>
+    <p class="hero-desc">Real-time market signals, India incidents, competitor moves, and actionable marketing briefs — built for your team to move fast.</p>
+  </div>
+  <div class="hero-stats fade-in delay-2">
+    <div class="hero-stat-row">
+      <span class="stat-label">India market 2026</span>
+      <span><span class="stat-value">$81M</span><span class="stat-delta up">↑ 13.9%</span></span>
+    </div>
+    <div class="hero-stat-row">
+      <span class="stat-label">Global market</span>
+      <span><span class="stat-value">$43B</span><span class="stat-delta up">↑ 8.4%</span></span>
+    </div>
+    <div class="hero-stat-row">
+      <span class="stat-label">Peak temp today</span>
+      <span><span class="stat-value" style="color:var(--accent-3)">46.9°C</span><span class="stat-delta" style="color:var(--red)">↑ extreme</span></span>
+    </div>
+    <div class="hero-stat-row">
+      <span class="stat-label">IPL season status</span>
+      <span><span class="stat-value" style="font-size:20px;color:var(--accent-2)">Live now</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- CONTENT AREA -->
+  <div class="content-area fade-in delay-3">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('india', this)">India Moments</button>
+      <button class="tab-btn" onclick="switchTab('global', this)">Global Trends</button>
+      <button class="tab-btn" onclick="switchTab('competitors', this)">Competitors</button>
+      <button class="tab-btn" onclick="switchTab('actions', this)">This Week's Actions</button>
+    </div>
+
+    <!-- INDIA PANEL -->
+    <div class="panel active" id="panel-india">
+
+      <div class="panel-section">
+        <div class="panel-section-title">Critical — Act immediately</div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">India heatwave 2026 — record early onset, 98/100 hottest cities</div>
+            <span class="urgency-badge urg-critical">Critical</span>
+          </div>
+          <div class="insight-card-body open">
+            <div class="insight-block">
+              <div class="insight-block-label">What's happening</div>
+              <div class="insight-block-text">India is in the grip of an extreme early-onset heatwave in 2026, with 98 of the world's 100 hottest cities within its borders. Temperatures have surged past 45°C across northern, central, and eastern India. Akola, Maharashtra recorded <strong>46.9°C</strong> on April 27. Power demand hit a record 256 GW — a level usually seen in June–July. IMD forecasts above-normal heatwave days through June across east, central, and northwest India.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Why it matters for electrolytes</div>
+              <div class="insight-block-text">Extreme heat accelerates electrolyte loss through sweat. A 2026 study confirmed that even a single day of heatwave increases daily mortality by a measurable percentage. Long-term heat exposure increases stroke risk by 18% in Indians over 45, with a 40% jump for those with diabetes or hypertension. <strong>The body is losing far more than water</strong> — this is the core science message.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Marketing angle</div>
+              <div class="insight-block-text"><strong>"This isn't normal summer heat. Your body is losing more than water."</strong> Lead with empathy and science. Position Osmo as the evolved upgrade from ORS, which the government is actively pushing. Avoid promotional tone — awareness-first.</div>
+            </div>
+            <div class="card-tag-row">
+              <span class="card-tag">Time-sensitive · 7-day window</span>
+              <span class="card-tag">Empathy-first tone</span>
+              <span class="card-tag">Science-backed</span>
+            </div>
+            <div class="card-actions">
+              <button class="card-action-btn" onclick="brief('heatwave_content')">Content brief →</button>
+              <button class="card-action-btn" onclick="brief('heatwave_social')">Write social copy →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">Census workers die of sunstroke in Odisha — govt mandates ORS</div>
+            <span class="urgency-badge urg-critical">Critical</span>
+          </div>
+          <div class="insight-card-body">
+            <div class="insight-block">
+              <div class="insight-block-label">What's happening</div>
+              <div class="insight-block-text">Two school teachers conducting door-to-door census work died from sunstroke in Odisha's Sundargarh and Mayurbhanj districts (April 25–26). Odisha's government issued an SOP explicitly recommending ORS for field workers. At least 4 voters died on West Bengal election day from heat. Maharashtra confirmed 31 heatstroke cases with one suspected death.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Marketing angle</div>
+              <div class="insight-block-text"><strong>"If the government is distributing ORS, imagine what a proper electrolyte does."</strong> Empathy-first campaign for outdoor workers — census enumerators, delivery riders, construction workers, farmers. The ORS government push creates a perfect "upgrade" narrative for Osmo.</div>
+            </div>
+            <div class="card-tag-row">
+              <span class="card-tag">Empathy mandatory</span>
+              <span class="card-tag">Outdoor worker audience</span>
+              <span class="card-tag">Evergreen angle</span>
+            </div>
+            <div class="card-actions">
+              <button class="card-action-btn" onclick="brief('ors_upgrade')">ORS vs Osmo brief →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Ongoing — Season-long opportunities</div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">IPL 2026 in full swing — 74 matches in 45°C heat through May 31</div>
+            <span class="urgency-badge urg-high">High</span>
+          </div>
+          <div class="insight-card-body">
+            <div class="insight-block">
+              <div class="insight-block-label">What's happening</div>
+              <div class="insight-block-text">IPL 2026 runs March 28 – May 31, 74 matches across 13 stadiums. Entirely overlapping with peak heatwave season. Afternoon matches mean players and fans are both sweating heavily. Virat Kohli hit 9000 IPL runs this season — maximum cultural attention on cricket right now.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Marketing angle</div>
+              <div class="insight-block-text"><strong>"The players aren't the only ones sweating."</strong> Target fans watching outdoor — rooftops, open-air restaurants, stadiums, college grounds. The co-viewing sweat audience is massive and totally underserved by hydration brands.</div>
+            </div>
+            <div class="card-tag-row">
+              <span class="card-tag">Season-long · May 31 end</span>
+              <span class="card-tag">Fan audience</span>
+              <span class="card-tag">Reels + Shorts</span>
+            </div>
+            <div class="card-actions">
+              <button class="card-action-btn" onclick="brief('ipl_fan')">IPL campaign brief →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">New Indian research: extreme heat raises stroke risk 18% in over-45s</div>
+            <span class="urgency-badge urg-medium">Medium</span>
+          </div>
+          <div class="insight-card-body">
+            <div class="insight-block">
+              <div class="insight-block-label">What's happening</div>
+              <div class="insight-block-text">A March 2026 study confirmed long-term extreme heat exposure is associated with an 18% increase in stroke risk among Indians over 45. Risk jumps 40% for those with diabetes or hypertension. A January 2026 ADB analysis also linked heat extremes to increased blood glucose levels. 76% of India's population now lives in high-to-very-high heat risk districts.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Marketing angle</div>
+              <div class="insight-block-text">Science-backed content targeting <strong>urban professionals 35–55</strong> who don't think of themselves as "athletes." Cognitive dehydration angle: even 1–2% dehydration impairs focus and memory. "Hydration isn't just for athletes. It's for anyone with a functioning brain."</div>
+            </div>
+            <div class="card-tag-row">
+              <span class="card-tag">Science-backed</span>
+              <span class="card-tag">Evergreen</span>
+              <span class="card-tag">35–55 urban professional audience</span>
+            </div>
+            <div class="card-actions">
+              <button class="card-action-btn" onclick="brief('science_35plus')">Science content brief →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-fetch-area">
+        <div class="panel-section-title">Live India research</div>
+        <div class="ai-output" id="india-ai-output"></div>
+        <button class="ai-fetch-btn" onclick="fetchSection('india')">
+          <span>↻</span> Search India incidents today
+        </button>
+      </div>
+    </div>
+
+    <!-- GLOBAL PANEL -->
+    <div class="panel" id="panel-global">
+      <div class="panel-section">
+        <div class="panel-section-title">Market size & macro</div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">India is the fastest-growing electrolyte market globally — 13.9% CAGR</div>
+            <span class="urgency-badge urg-medium">Key data</span>
+          </div>
+          <div class="insight-card-body open">
+            <div class="insight-block">
+              <div class="insight-block-label">Numbers</div>
+              <div class="insight-block-text">India sports drinks market valued at <strong>$81M in 2026</strong>, projected to reach $109M by 2031. Global electrolyte drinks market at $43B in 2026, heading to $82B by 2034 (8.4% CAGR). India growing at 13.9% CAGR 2026–2033 — the fastest in the world — fueled by 600M+ youth population and rapid urbanization.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Strategic implication</div>
+              <div class="insight-block-text">The India electrolyte category is structurally underpenetrated — top 5 brands hold 92% of the market, leaving room for a premium science-forward entrant. Osmo's white space: <strong>high science credibility × premium price × D2C distribution</strong>. No current brand fully owns this.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">Clean-label & zero-sugar shift: FSSAI's July 2024 mandate accelerating reformulation</div>
+            <span class="urgency-badge urg-high">High</span>
+          </div>
+          <div class="insight-card-body">
+            <div class="insight-block">
+              <div class="insight-block-label">What's happening</div>
+              <div class="insight-block-text">FSSAI's July 2024 mandate requires bold front-of-pack disclosures on sugar, salt, and fat. Products flagged with red/amber warnings face lower acceptance. India has 101 million diabetic adults for whom sugar content is a primary purchase consideration. Coca-Cola launched Powerade Power Water (zero-sugar) in Nov 2025 directly targeting this shift.</div>
+            </div>
+            <div class="insight-block">
+              <div class="insight-block-label">Marketing angle</div>
+              <div class="insight-block-text"><strong>Osmo's clean formulation is a regulatory advantage, not just a product feature.</strong> Lead with transparency — publish ingredient doses openly, compare against ORS sugar content. Own the "no red label" messaging before competitors do.</div>
+            </div>
+            <div class="card-tag-row">
+              <span class="card-tag">Regulatory tailwind</span>
+              <span class="card-tag">Evergreen</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-card">
+          <div class="insight-card-head" onclick="toggleCard(this)">
+            <div class="insight-card-title">Indian flavour bets for 2026: guava chilli, coconut-pineapple, grape frost</div>
+            <span class="urgency-badge urg-low">Insight</span>
+          </div>
+          <div class="insight-card-body">
+            <div class="insight-block-text">Coconut-pineapple growing 35% — reinforces natural electrolyte messaging. Guava chilli and kala khatta emerging as distinctly Indian profiles that can't be copied from Western brands. Zero-sugar variants sweetened with stevia/monk fruit growing fastest. Grape frost with menthol popular among under-25s.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-fetch-area">
+        <div class="panel-section-title">Live global research</div>
+        <div class="ai-output" id="global-ai-output"></div>
+        <button class="ai-fetch-btn" onclick="fetchSection('global')">
+          <span>↻</span> Search global category trends now
+        </button>
+      </div>
+    </div>
+
+    <!-- COMPETITORS PANEL -->
+    <div class="panel" id="panel-competitors">
+      <div class="panel-section">
+        <div class="panel-section-title">India market map</div>
+        <div class="comp-grid">
+          <div class="comp-card">
+            <div class="comp-name">Fast&amp;Up</div>
+            <div class="comp-desc">Effervescent tabs, pan-India distribution. Recently launched electrolyte popsicles with NOTO — first-of-kind format. Aam panna + cola flavours show Indian palate ambition.</div>
+            <span class="threat-chip" style="background:rgba(212,68,68,0.1);color:#e06060;border:1px solid rgba(212,68,68,0.2)">High threat</span>
+          </div>
+          <div class="comp-card">
+            <div class="comp-name">Powerade (Coca-Cola)</div>
+            <div class="comp-desc">Power Water zero-sugar launched Nov 2025 in India — first serious clean-label move by a major. Backed by Coca-Cola's distribution. Watch for wider rollout.</div>
+            <span class="threat-chip" style="background:rgba(196,124,90,0.1);color:var(--accent-3);border:1px solid rgba(196,124,90,0.2)">Watch closely</span>
+          </div>
+          <div class="comp-card">
+            <div class="comp-name">Campa (Reliance)</div>
+            <div class="comp-desc">Introduced ₹10 SKU using vertical integration to undercut incumbents on price. Forcing brands into value vs. premium portfolio segmentation decisions.</div>
+            <span class="threat-chip" style="background:rgba(196,124,90,0.1);color:var(--accent-3);border:1px solid rgba(196,124,90,0.2)">Price pressure</span>
+          </div>
+          <div class="comp-card">
+            <div class="comp-name">MuscleBlaze</div>
+            <div class="comp-desc">India's largest sports nutrition brand. If they scale an electrolyte push with their distribution, it's a category legitimisation signal — and a distribution threat.</div>
+            <span class="threat-chip" style="background:rgba(200,184,130,0.08);color:var(--accent);border:1px solid rgba(200,184,130,0.15)">Monitor</span>
+          </div>
+          <div class="comp-card">
+            <div class="comp-name">Supply6</div>
+            <div class="comp-desc">D2C, high-sodium, blue-collar positioning. Different ICP from Osmo — not a direct threat but validating the category with non-gym audiences.</div>
+            <span class="threat-chip" style="background:rgba(138,173,138,0.08);color:var(--accent-2);border:1px solid rgba(138,173,138,0.15)">Low</span>
+          </div>
+          <div class="comp-card">
+            <div class="comp-name">Enerzal / ORS</div>
+            <div class="comp-desc">Pharmacy channel. Government is actively pushing ORS for heatwave and outdoor worker safety. Creates "upgrade" narrative opportunity for Osmo.</div>
+            <span class="threat-chip" style="background:rgba(138,173,138,0.08);color:var(--accent-2);border:1px solid rgba(138,173,138,0.15)">Low · Opportunity</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-fetch-area">
+        <div class="panel-section-title">Live competitor intelligence</div>
+        <div class="ai-output" id="competitors-ai-output"></div>
+        <button class="ai-fetch-btn" onclick="fetchSection('competitors')">
+          <span>↻</span> Search competitor news now
+        </button>
+      </div>
+    </div>
+
+    <!-- ACTIONS PANEL -->
+    <div class="panel" id="panel-actions">
+      <div class="panel-section">
+        <div class="panel-section-title">This week — April 28 – May 4, 2026</div>
+
+        <div class="action-item">
+          <div class="action-num">01</div>
+          <div class="action-content">
+            <div class="action-title">Heatwave empathy carousel — Instagram + X</div>
+            <div class="action-desc">3-slide post: (1) "98 of the world's 100 hottest cities are in India right now." (2) What your body loses in 30 minutes of outdoor heat vs. what plain water replaces. (3) Soft Osmo product mention with science backing. No hard sell. Tone: educational, empathetic, urgent.</div>
+            <div class="action-meta">
+              <span class="action-chip">Instagram · X</span>
+              <span class="action-chip">Empathy-first</span>
+              <span class="action-chip">Do today</span>
+              <button class="action-cta" onclick="brief('heatwave_carousel')">Generate copy →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-item">
+          <div class="action-num">02</div>
+          <div class="action-content">
+            <div class="action-title">PR pitch — "ORS is not enough" to health editors</div>
+            <div class="action-desc">Govt is recommending ORS for census workers and heatwave victims. Pitch Osmo as the evolved, science-backed alternative. Target health editors at Times of India, Hindustan Times, Mint Lounge, Scroll Health. Frame as a public health upgrade, not a competitor attack.</div>
+            <div class="action-meta">
+              <span class="action-chip">PR · Media outreach</span>
+              <span class="action-chip">This week</span>
+              <button class="action-cta" onclick="brief('pr_pitch')">Write PR pitch →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-item">
+          <div class="action-num">03</div>
+          <div class="action-content">
+            <div class="action-title">IPL fan sweat Reel — "You're not watching from an AC box"</div>
+            <div class="action-desc">30-second Reel targeting the massive audience watching IPL outdoors — rooftops, dhabas, grounds, college common rooms. Show the real fan experience, then the Osmo solution. Run as organic first, boost if it performs. IPL season ends May 31 — time-limited window.</div>
+            <div class="action-meta">
+              <span class="action-chip">Instagram Reels</span>
+              <span class="action-chip">YouTube Shorts</span>
+              <span class="action-chip">Before May 31</span>
+              <button class="action-cta" onclick="brief('ipl_reel')">Write Reel script →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-item">
+          <div class="action-num">04</div>
+          <div class="action-content">
+            <div class="action-title">Science content series — cognitive dehydration for professionals</div>
+            <div class="action-desc">New research: even 1–2% dehydration measurably impairs focus and decision-making. Target urban professionals 30–50 in Delhi, Mumbai, Bengaluru — not athletes. Angle: "Your performance at work depends on your hydration." Long-form LinkedIn + short Instagram.</div>
+            <div class="action-meta">
+              <span class="action-chip">LinkedIn</span>
+              <span class="action-chip">Instagram</span>
+              <span class="action-chip">Evergreen</span>
+              <button class="action-cta" onclick="brief('cognitive_series')">Build content series →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-fetch-area">
+        <div class="panel-section-title">Generate this week's full marketing brief</div>
+        <div class="ai-output" id="actions-ai-output"></div>
+        <button class="ai-fetch-btn" onclick="fetchSection('actions')">
+          <span>↗</span> Generate AI marketing brief for today
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar fade-in delay-4">
+
+    <div class="sidebar-block">
+      <div class="sidebar-title">Category heat map</div>
+      <div class="heat-row">
+        <div class="heat-label">Heatwave urgency</div>
+        <div class="heat-bar-wrap"><div class="heat-bar" style="width:96%;background:var(--red)"></div></div>
+        <div class="heat-val" style="color:var(--red)">96</div>
+      </div>
+      <div class="heat-row">
+        <div class="heat-label">IPL relevance</div>
+        <div class="heat-bar-wrap"><div class="heat-bar" style="width:82%;background:var(--accent)"></div></div>
+        <div class="heat-val">82</div>
+      </div>
+      <div class="heat-row">
+        <div class="heat-label">Competitor activity</div>
+        <div class="heat-bar-wrap"><div class="heat-bar" style="width:74%;background:var(--accent-3)"></div></div>
+        <div class="heat-val">74</div>
+      </div>
+      <div class="heat-row">
+        <div class="heat-label">Regulatory change</div>
+        <div class="heat-bar-wrap"><div class="heat-bar" style="width:65%;background:var(--accent)"></div></div>
+        <div class="heat-val">65</div>
+      </div>
+      <div class="heat-row">
+        <div class="heat-label">Global trends</div>
+        <div class="heat-bar-wrap"><div class="heat-bar" style="width:58%;background:var(--accent-2)"></div></div>
+        <div class="heat-val">58</div>
+      </div>
+    </div>
+
+    <div class="sidebar-block">
+      <div class="sidebar-title">Upcoming triggers</div>
+      <div class="cal-item">
+        <div class="cal-date">NOW</div>
+        <div class="cal-dot" style="background:var(--red)"></div>
+        <div class="cal-text"><strong>Heatwave peak</strong> — NDMA alerts active, PM advised hydration protocols</div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date">MAY</div>
+        <div class="cal-dot" style="background:var(--accent)"></div>
+        <div class="cal-text"><strong>IPL playoffs</strong> — highest viewership, outdoor fan peak</div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date">MAY</div>
+        <div class="cal-dot" style="background:var(--accent)"></div>
+        <div class="cal-text"><strong>Board exam results</strong> — cognitive performance angle, student audience</div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date">JUN</div>
+        <div class="cal-dot" style="background:var(--accent-2)"></div>
+        <div class="cal-text"><strong>Pre-monsoon humidity</strong> — sweat + discomfort spike, urban consumer moment</div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date">JUL</div>
+        <div class="cal-dot" style="background:var(--accent-2)"></div>
+        <div class="cal-text"><strong>Monsoon illness season</strong> — gut health + electrolyte loss from illness</div>
+      </div>
+      <div class="cal-item">
+        <div class="cal-date">OCT</div>
+        <div class="cal-dot" style="background:var(--accent)"></div>
+        <div class="cal-text"><strong>Navratri</strong> — 9-day fasting + garba dancing, electrolyte loss clinically real</div>
+      </div>
+    </div>
+
+    <div class="sidebar-block">
+      <div class="sidebar-title">Osmo positioning map</div>
+      <svg viewBox="0 0 260 200" style="width:100%;font-family:var(--font-mono)">
+        <line x1="130" y1="10" x2="130" y2="190" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+        <line x1="10" y1="100" x2="250" y2="100" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+        <text x="130" y="8" fill="#3a3a37" font-size="8" text-anchor="middle">HIGH SCIENCE</text>
+        <text x="130" y="198" fill="#3a3a37" font-size="8" text-anchor="middle">LOW SCIENCE</text>
+        <text x="12" y="104" fill="#3a3a37" font-size="8">LOW PRICE</text>
+        <text x="180" y="104" fill="#3a3a37" font-size="8">HIGH PRICE</text>
+
+        <!-- Osmo - highlighted -->
+        <circle cx="195" cy="35" r="8" fill="rgba(200,184,130,0.2)" stroke="#c8b882" stroke-width="1.5"/>
+        <text x="195" y="26" fill="#c8b882" font-size="9" text-anchor="middle" font-weight="500">Osmo</text>
+
+        <!-- competitors -->
+        <circle cx="80" cy="140" r="5" fill="rgba(196,124,90,0.15)" stroke="var(--accent-3)" stroke-width="1"/>
+        <text x="80" y="155" fill="var(--accent-3)" font-size="8" text-anchor="middle">Supply6</text>
+
+        <circle cx="55" cy="155" r="5" fill="rgba(90,87,82,0.3)" stroke="#5a5752" stroke-width="1"/>
+        <text x="55" y="170" fill="#5a5752" font-size="8" text-anchor="middle">ORS</text>
+
+        <circle cx="115" cy="70" r="5" fill="rgba(138,173,138,0.15)" stroke="var(--accent-2)" stroke-width="1"/>
+        <text x="115" y="63" fill="var(--accent-2)" font-size="8" text-anchor="middle">Fast&amp;Up</text>
+
+        <circle cx="170" cy="80" r="5" fill="rgba(90,87,82,0.3)" stroke="#5a5752" stroke-width="1"/>
+        <text x="175" y="73" fill="#5a5752" font-size="8" text-anchor="middle">Liq.IV</text>
+
+        <circle cx="200" cy="85" r="5" fill="rgba(90,87,82,0.3)" stroke="#5a5752" stroke-width="1"/>
+        <text x="220" y="84" fill="#5a5752" font-size="8">LMNT</text>
+
+        <!-- white space label -->
+        <text x="195" y="55" fill="rgba(200,184,130,0.3)" font-size="7" text-anchor="middle">White space</text>
+      </svg>
+    </div>
+
+    <div class="sidebar-block">
+      <div class="sidebar-title">Quick actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="ai-fetch-btn" style="font-size:9px;padding:8px 12px" onclick="brief('weekly_brief')">Generate full weekly brief →</button>
+        <button class="ai-fetch-btn" style="font-size:9px;padding:8px 12px" onclick="brief('heatwave_carousel')">Write heatwave social copy →</button>
+        <button class="ai-fetch-btn" style="font-size:9px;padding:8px 12px" onclick="brief('competitor_alert')">Latest competitor alert →</button>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+</div><!-- /main -->
+
+<footer>
+  <div class="footer-left" id="footerLeft">Electrolyte Intelligence · Internal use only</div>
+  <div class="footer-right" id="footerRight">Powered by Anthropic Claude · Data: live search + skill knowledge base</div>
+</footer>
+
+<script>
+const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+
+function setDate() {
+  const now = new Date();
+  const opts = { day: 'numeric', month: 'short', year: 'numeric' };
+  document.getElementById('datePill').textContent = now.toLocaleDateString('en-IN', opts);
+  document.getElementById('footerLeft').textContent =
+    'Electrolyte Intelligence · Last updated ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+setDate();
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function toggleCard(head) {
+  const body = head.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function brief(type) {
+  const prompts = {
+    heatwave_content: 'Create a full marketing content brief for Osmo electrolytes around the India heatwave 2026 — empathy-first tone, science-backed angle, 3 distinct content pieces across Instagram, X, and email',
+    heatwave_social: 'Write the complete copy for a 3-slide Instagram carousel for Osmo about the India heatwave 2026. Slide 1: the scale of the crisis. Slide 2: what the body actually loses. Slide 3: soft product mention with science. Empathy-first tone.',
+    ors_upgrade: 'Write a detailed brand positioning brief for Osmo around the ORS moment — government is recommending ORS for heatwave victims and outdoor workers. How does Osmo position as the science-backed upgrade without being disrespectful?',
+    ipl_fan: 'Build a full IPL 2026 campaign brief for Osmo targeting fans watching in extreme heat. Include: hook, message, 2 content formats, caption copy, hashtag strategy.',
+    ipl_reel: 'Write a 30-second Instagram Reel script for Osmo targeting IPL fans watching outdoors in the summer heat. Relatable, fun, ends with a product hook. No cringe.',
+    science_35plus: 'Create a 4-post science content series for Osmo for LinkedIn and Instagram targeting urban professionals 35–50. Topic: how dehydration affects cognitive performance. Based on real 2026 Indian research on heat and stroke risk.',
+    heatwave_carousel: 'Write copy for a 3-slide Instagram carousel about heatwave + hydration for Osmo. Empathy-first, educational, ends with soft product mention.',
+    pr_pitch: 'Write a PR pitch email from Osmo to the health editor of Mint Lounge. Angle: ORS is what the government recommends but science now shows it\'s not enough for outdoor workers and athletes. Position Osmo as the evidence-based upgrade. Respectful tone, not anti-ORS.',
+    cognitive_series: 'Build a 6-post LinkedIn content series for Osmo on cognitive dehydration — targeting urban professionals in Bangalore, Mumbai, Delhi who don\'t think of themselves as athletes. Based on the 2026 research linking heat to stroke risk and cognitive impairment.',
+    weekly_brief: 'Generate a complete marketing intelligence brief for the Osmo electrolyte team for the week of April 28 – May 4, 2026. Include: top 3 India moments, 1 global trend, 1 competitor alert, and 4 prioritized marketing actions with channel, tone, and copy direction.',
+    competitor_alert: 'Analyze the competitive landscape for Osmo in India as of April 2026. Fast&Up launched electrolyte popsicles with NOTO. Powerade Power Water launched zero-sugar. Campa launched ₹10 SKU. What should Osmo do in response?',
+  };
+  const msg = prompts[type] || 'Give me a detailed marketing brief for this topic in the context of Osmo electrolytes India.';
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://claude.ai/new?q=${encoded}`, '_blank');
+}
+
+async function callClaude(systemPrompt, userPrompt, outputEl) {
+  outputEl.innerHTML = `
+    <div class="sk sk-card" style="height:70px;margin-bottom:10px"></div>
+    <div class="sk sk-card" style="height:70px;margin-bottom:0"></div>`;
+  try {
+    const res = await fetch(CLAUDE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.find(b => b.type === 'text')?.text || '[]';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const items = JSON.parse(clean);
+    renderAICards(items, outputEl);
+  } catch(e) {
+    outputEl.innerHTML = `<div class="insight-card" style="padding:14px 18px"><div class="insight-block-text" style="color:var(--text-3)">Live data unavailable. Using cached intelligence above.</div></div>`;
+  }
+}
+
+function renderAICards(items, el) {
+  if (!items || !items.length) {
+    el.innerHTML = `<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);padding:12px 0">No new items found in live search.</div>`;
+    return;
+  }
+  const urgClass = { critical:'urg-critical', high:'urg-high', medium:'urg-medium', low:'urg-low' };
+  el.innerHTML = items.map(item => `
+    <div class="insight-card" style="margin-bottom:10px">
+      <div class="insight-card-head" onclick="toggleCard(this)">
+        <div class="insight-card-title">${item.title}</div>
+        <span class="urgency-badge ${urgClass[item.urgency] || 'urg-medium'}">${item.urgency || 'medium'}</span>
+      </div>
+      <div class="insight-card-body">
+        <div class="insight-block">
+          <div class="insight-block-label">Summary</div>
+          <div class="insight-block-text">${item.summary}</div>
+        </div>
+        <div class="insight-block">
+          <div class="insight-block-label">Marketing angle</div>
+          <div class="insight-block-text">${item.angle}</div>
+        </div>
+        <div class="card-tag-row"><span class="card-tag">${item.tag}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+const SYSTEM = 'You are an electrolyte market intelligence analyst for an Indian DTC brand called Osmo. Return a JSON array of exactly 3 insight objects. Each object has: title (string), urgency ("critical"|"high"|"medium"|"low"), summary (string, 2 sentences), angle (string, 1 sentence marketing hook starting with a bold claim in quotes), tag (string, short descriptor like "Time-sensitive · 7-day window"). Return ONLY valid JSON array. No markdown, no preamble, no explanation.';
+
+function fetchSection(section) {
+  const configs = {
+    india: {
+      prompt: 'Today is April 29, 2026. India heatwave: 98 of world\'s 100 hottest cities in India, 46.9°C peak, census workers dying of sunstroke, NDMA alerts, IPL ongoing. Generate 3 India-specific moment insights for Osmo electrolyte brand marketing RIGHT NOW.',
+      el: document.getElementById('india-ai-output')
+    },
+    global: {
+      prompt: 'Today is April 29, 2026. Global electrolyte market: $43B growing 8.4% CAGR, India fastest at 13.9%, Powerade Power Water launched India, clean-label shift dominant, zero-sugar fastest growing. Generate 3 global category insights for premium Indian electrolyte brand Osmo.',
+      el: document.getElementById('global-ai-output')
+    },
+    competitors: {
+      prompt: 'India electrolyte competitors April 2026: Fast&Up launched electrolyte popsicles with NOTO (cranberry + orange, ₹102, Swiggy/Zomato). Powerade Power Water zero-sugar in India. Campa ₹10 SKU. MuscleBlaze scaling sports nutrition. Generate 3 competitor intelligence insights for Osmo — white space, threats, and response moves.',
+      el: document.getElementById('competitors-ai-output')
+    },
+    actions: {
+      prompt: 'Today is April 29, 2026. India heatwave critical, IPL season live until May 31, govt pushing ORS for outdoor workers. Generate 3 prioritized marketing action insights for Osmo electrolytes this week — each with a concrete channel recommendation and angle.',
+      el: document.getElementById('actions-ai-output')
+    }
+  };
+  const c = configs[section];
+  if (c) callClaude(SYSTEM, c.prompt, c.el);
+}
+
+function runRefresh() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  setDate();
+  setTimeout(() => btn.classList.remove('spinning'), 1500);
+}
+</script>
+</body>
+</html>
