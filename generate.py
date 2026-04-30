@@ -12,7 +12,7 @@ import sys
 from datetime import datetime, timezone, timedelta
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
-MODEL = "claude-opus-4-5"          # swap to any model you prefer
+MODEL = "claude-sonnet-4-6"          # swap to any model you prefer
 IST   = timezone(timedelta(hours=5, minutes=30))
 TODAY = datetime.now(IST).strftime("%B %d, %Y")
 DOW   = datetime.now(IST).strftime("%A")
