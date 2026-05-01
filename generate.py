@@ -12,7 +12,7 @@ import sys
 from datetime import datetime, timezone, timedelta
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
-MODEL = "claude-sonnet-4-6"          # swap to any model you prefer
+MODEL = "claude-opus-4-5"          # swap to any model you prefer
 IST   = timezone(timedelta(hours=5, minutes=30))
 TODAY = datetime.now(IST).strftime("%B %d, %Y")
 DOW   = datetime.now(IST).strftime("%A")
@@ -40,8 +40,21 @@ def fetch(prompt: str, schema_hint: str = "") -> list:
         system=SYSTEM,
         messages=[{"role": "user", "content": full_prompt}]
     )
-    raw = msg.content[0].text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-    return json.loads(raw)
+    raw = msg.content[0].text.strip()
+    # Strip markdown fences robustly
+    for fence in ["```json", "```"]:
+        raw = raw.replace(fence, "")
+    raw = raw.strip()
+    parsed = json.loads(raw)
+    # Always return a list
+    if isinstance(parsed, list):
+        return parsed
+    if isinstance(parsed, dict):
+        for key in ("items", "data", "results", "triggers", "scores"):
+            if key in parsed and isinstance(parsed[key], list):
+                return parsed[key]
+        return [v for v in parsed.values() if isinstance(v, dict)]
+    return []
 
 
 # ── FETCH ALL SECTIONS ───────────────────────────────────────────────────────
