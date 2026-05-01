@@ -31,6 +31,7 @@ jobs:
         run: |
           git config user.name  "Intelligence Bot"
           git config user.email "bot@electrolyte-intelligence"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git add index.html
           git diff --staged --quiet || git commit -m "Daily refresh: $(date +'%Y-%m-%d %H:%M IST')"
           git push
