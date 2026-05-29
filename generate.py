@@ -17,6 +17,7 @@ import json
 import os
 import sys
 import re
+import time
 from datetime import datetime, timezone, timedelta, date
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -62,8 +63,30 @@ def fetch(prompt: str, schema_hint: str = "", max_tokens: int = 1500, use_search
         messages=[{"role": "user", "content": full_prompt}],
     )
     if use_search:
-        kwargs["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
-    msg = client.messages.create(**kwargs)
+        # max_uses=1: each web result is fed back as INPUT tokens, and this
+        # org's limit is only 30k input tokens/min. One search per section
+        # keeps a single call safely under the limit while still grounding
+        # the content in a real source. (Was 5 — that blew the limit.)
+        kwargs["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 1}]
+    # Retry with backoff. Web search spikes input tokens and can trip the
+    # per-minute rate limit (429). When that happens, wait out the 1-minute
+    # window and retry instead of crashing the whole build.
+    msg = None
+    for attempt in range(5):
+        try:
+            msg = client.messages.create(**kwargs)
+            break
+        except anthropic.RateLimitError:
+            wait = 65
+            print(f"  Rate limited (429) — waiting {wait}s, retry {attempt+1}/5...", file=sys.stderr)
+            time.sleep(wait)
+    if msg is None:
+        print("  Gave up after repeated rate limits — section left empty.", file=sys.stderr)
+        return []
+    # Pace searched calls so consecutive ones don't stack input tokens within
+    # the same minute window (reduces how often we hit the 429 above).
+    if use_search:
+        time.sleep(30)
     # When web_search runs, msg.content holds several blocks (tool calls,
     # search results, then the final answer). Grab the LAST text block —
     # that's the model's final JSON answer. (content[0] would be a tool call.)
