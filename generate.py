@@ -21,6 +21,12 @@ from datetime import datetime, timezone, timedelta, date
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
 MODEL = "claude-sonnet-4-6"
+
+# Manually-verified date for the competitor PRICING_DATA table below.
+# IMPORTANT: bump this ONLY when you actually re-check the live prices.
+# It must NOT auto-update with the page — that would falsely imply prices
+# were re-verified every morning when they're hardcoded.
+PRICING_VERIFIED = "May 29, 2026"
 IST   = timezone(timedelta(hours=5, minutes=30))
 NOW   = datetime.now(IST)
 TODAY_DATE  = NOW.date()
@@ -40,19 +46,37 @@ festival calendar, and health advisories. Osmo's positioning: high science credi
 premium price, D2C, targeting urban professionals and serious athletes."""
 
 
-def fetch(prompt: str, schema_hint: str = "", max_tokens: int = 1500) -> list:
-    """Call Claude and return parsed JSON list."""
+def fetch(prompt: str, schema_hint: str = "", max_tokens: int = 1500, use_search: bool = False) -> list:
+    """Call Claude and return parsed JSON list.
+
+    use_search=True turns on Anthropic's live web_search tool so the model
+    pulls REAL, current results instead of writing plausible content from memory.
+    Use it for anything labelled 'live' or 'today's' (India moments, global
+    trends, competitor moves, radar). Adds ~1-2 cents per call.
+    """
     full_prompt = f"{prompt}\n\nReturn a JSON array. {schema_hint}"
-    msg = client.messages.create(
+    kwargs = dict(
         model=MODEL,
         max_tokens=max_tokens,
         system=SYSTEM,
-        messages=[{"role": "user", "content": full_prompt}]
+        messages=[{"role": "user", "content": full_prompt}],
     )
-    raw = msg.content[0].text.strip()
+    if use_search:
+        kwargs["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
+    msg = client.messages.create(**kwargs)
+    # When web_search runs, msg.content holds several blocks (tool calls,
+    # search results, then the final answer). Grab the LAST text block —
+    # that's the model's final JSON answer. (content[0] would be a tool call.)
+    text_blocks = [b.text for b in msg.content if getattr(b, "type", None) == "text"]
+    raw = (text_blocks[-1] if text_blocks else "").strip()
     # Strip non-ASCII and markdown fences
     raw = raw.replace("```json", "").replace("```", "").strip()
     raw = re.sub(r'[\x00-\x1f\x7f]', '', raw)
+    # If the model wrapped the JSON in prose, pull out the array/object.
+    if raw and raw[0] not in "[{":
+        m = re.search(r'(\[.*\]|\{.*\})', raw, re.DOTALL)
+        if m:
+            raw = m.group(1)
     try:
         parsed = json.loads(raw)
     except Exception as e:
@@ -103,14 +127,7 @@ def format_event_date(date_str: str) -> str:
 # Bot regenerates the page daily; these values persist.
 # ════════════════════════════════════════════════════════════════════════════
 
-COMPETITORS_LANDSCAPE = [
-    {"name":"Fast&Up", "desc":"Effervescent tabs, pan-India. Launched electrolyte popsicles with NOTO (₹102). Aam panna + cola flavours show Indian palate ambition.", "threat":"high"},
-    {"name":"Powerade (Coca-Cola)", "desc":"Power Water zero-sugar launched India Nov 2025. First serious clean-label move from a major. Watch for wider rollout.", "threat":"watch"},
-    {"name":"Campa (Reliance)", "desc":"₹10 SKU via vertical integration. Forcing portfolio segmentation decisions across all incumbents.", "threat":"pressure"},
-    {"name":"MuscleBlaze", "desc":"India's largest sports nutrition brand. If they scale electrolytes with their distribution, it's a direct threat.", "threat":"monitor"},
-    {"name":"LMNT India", "desc":"Just landed. Same positioning, higher sodium dose, lower per-serving cost. Already running US-style influencer playbook.", "threat":"disruptor"},
-    {"name":"Enerzal / ORS", "desc":"Govt actively pushing ORS for heatwave victims — creates 'upgrade narrative' opportunity for Osmo.", "threat":"opportunity"},
-]
+# COMPETITORS_LANDSCAPE is now AI-generated daily (see fetch below)
 
 # date format: 'YYYY-MM-DD' OR None for TBD
 EVENTS_DATA = [
@@ -196,7 +213,7 @@ ENTRANT_THREAT = {
 
 ENTRANTS_DATA = [
     {"brand":"hydRo365", "parent":"by Founded by Rohit Sharma · hydRo365 Daily Hydration Powder · Powder · Stick",
-     "date":"2026-04-30", "threat":"disruptor",
+     "date":"2026-04-30", "threat":"disruptor", "verified":"2026-05-29",
      "mrp":"Per official D2C site", "pser":"TBA / serving",
      "summary":"Rohit Sharma's birthday launch positions hydRo365 as a daily-hydration lifestyle brand — explicitly NOT just for athletes. Celebrity-led, monk-fruit clean-label, and the 365 messaging hits Osmo's everyday-premium narrative dead-centre.",
      "claims":"6 essential electrolytes · Vitamin C · Zinc · B-vitamins · L-theanine · Monk-fruit sweetened · Clean-label",
@@ -204,9 +221,9 @@ ENTRANTS_DATA = [
      "vs_osmo":"Same clean-label playbook with celebrity firepower Osmo can't match on cost. Osmo wins on science depth, athlete proof, and combat/hybrid sports positioning.",
      "verify":"https://www.hydro365.com/"},
     {"brand":"Liquid I.V. India", "parent":"by HUL · Unilever · Hydration Multiplier · Powder · Stick",
-     "date":"2026-04-11", "threat":"disruptor",
+     "date":"2025-02-24", "threat":"disruptor", "verified":"2026-05-29",
      "mrp":"₹1,496 / 16 sticks", "pser":"₹94 / serving",
-     "summary":"HUL has fully launched Liquid I.V. in India in 3 flavours (Acai Berry · Brazilian Orange · Lemon Lime). Unilever distribution muscle + global brand authority + quick-commerce play makes this the single biggest competitive event of the year.",
+     "summary":"HUL launched Liquid I.V. in India (debut Feb 2025, full rollout Apr 2025) in 3 flavours (Acai Berry · Brazilian Orange · Lemon Lime). Unilever distribution muscle + global brand authority + quick-commerce play makes this one of the biggest competitive events in the category.",
      "claims":"3× more electrolytes · No artificial sweeteners · No caffeine · All-natural flavours · Gluten-free",
      "distribution":"Amazon · Blinkit · liquid-iv.co.in", "target":"Premium · Wellness",
      "vs_osmo":"Unbeatable distribution and trade marketing budget. Osmo wins on India-specific positioning, athlete tie-ups, and category education depth (Liquid I.V. plays on convenience, not science).",
@@ -227,14 +244,6 @@ ENTRANTS_DATA = [
      "distribution":"MuscleBlaze D2C · HealthKart stores · Amazon", "target":"Mass · Gym",
      "vs_osmo":"Wider gym retail and lower price. Lower science credibility and no clean-label story. Osmo wins on athlete authority.",
      "verify":"https://www.muscleblaze.com/sv/muscleblaze-sports-hydr8-pro/SP-107210"},
-    {"brand":"Powerade Power Water", "parent":"by Coca-Cola India · Power Water Zero-Sugar · RTD · 500 ml",
-     "date":"2025-11-15", "threat":"high-alert",
-     "mrp":"TBC", "pser":"Mass-premium / serving",
-     "summary":"Coca-Cola's first serious clean-label entry into Indian hydration. ₹40 Cr ad spend reported through summer 2026.",
-     "claims":"Zero sugar · Electrolytes · Coca-Cola distribution",
-     "distribution":"Modern trade · Quick-commerce · Kirana (rolling)", "target":"Mass · Everyday",
-     "vs_osmo":"Big spend ≠ credibility. Osmo's science depth, athlete proof, and clean-label authenticity beat ad volume.",
-     "verify":"https://www.cocacolaindia.com/"},
     {"brand":"Plix Tender Coconut Hydration", "parent":"by Plix Life · Tender Coconut Hydration Premix · Powder · Stick",
      "date":"2025-11-01", "threat":"watch",
      "mrp":"Per pack · 15 sachets", "pser":"Mass-mid / serving",
@@ -252,9 +261,9 @@ ENTRANTS_DATA = [
      "vs_osmo":"Different ICP (everyday mass) and different format (RTD). Validates category at price-tier Osmo doesn't compete in.",
      "verify":"https://lucofast.com/"},
     {"brand":"Reliance Spinner", "parent":"by Reliance Consumer Products · Spinner Sports Drink · RTD · 150 ml",
-     "date":"2025-02-18", "threat":"monitor",
+     "date":"2025-02-18", "threat":"monitor", "verified":"2026-05-29",
      "mrp":"₹10 / bottle", "pser":"₹10 / serving",
-     "summary":"₹10 RTD with Muttiah Muralitharan as co-creator. 5 IPL franchises tied in for 2026 season. Mass-priced sweat-replacement positioning.",
+     "summary":"₹10 RTD with Muttiah Muralitharan as co-creator. 5 IPL franchises (LSG, SRH, PBKS, GT, MI) tied in. Mass-priced sweat-replacement positioning.",
      "claims":"Electrolytes for sweat replacement · Lemon / Orange / Nitro Blue · IPL partnership with 5 teams",
      "distribution":"Reliance retail · Kirana · Quick-commerce", "target":"Mass · Everyday",
      "vs_osmo":"Validates category at scale + drives top-of-funnel awareness. Does not compete with Osmo's premium ICP.",
@@ -290,7 +299,7 @@ BRIEF_PROMPTS = {
     'cognitive_series': 'Build a 6-post LinkedIn content series for Osmo on cognitive dehydration — for urban professionals in Bangalore, Mumbai, Delhi.',
     'pr_pitch': 'Write a PR pitch email from Osmo to Mint Lounge health editor. Angle: ORS is not enough for outdoor workers — Osmo is the science-backed upgrade.',
     'weekly_brief': f'Generate a complete marketing intelligence brief for the Osmo team for the week of {TODAY}. Include top 3 India moments, 1 global trend, 1 competitor alert, 4 prioritized actions.',
-    'competitor_alert': 'Analyze the competitive landscape for Osmo in India right now. Fast&Up popsicles, Powerade Power Water, Campa ₹10 SKU, LMNT India launch, Liquid I.V. India — what should Osmo do?',
+    'competitor_alert': 'Analyze the competitive landscape for Osmo in India right now. Fast&Up popsicles, Reliance Spinner ₹10 RTD, hydRo365 (Rohit Sharma), Liquid I.V. India (HUL) — what should Osmo do?',
     'events_brief': 'Build a 90-day combat & hybrid sport activation calendar for Osmo. Include sampling, athlete tie-ups, and sponsorship for top events.',
     'entrants_brief': 'Generate a competitive response plan for Osmo against the latest electrolyte launches in India. Include hydRo365, Liquid I.V. India, Protyze HYDRA-X, MuscleBlaze Sports Hydr8 PRO.',
     'athlete_tieup': 'Draft an athlete-partnership pitch for Osmo to a tier-1 Indian combat athlete. Include compensation framework, content deliverables, and exclusivity terms.',
@@ -313,8 +322,10 @@ Each object must have:
   why (1 sentence: mechanism connecting this to electrolyte need),
   angle (1 sentence: bold marketing hook in quotes),
   action ("organic_social"|"paid_campaign"|"pr_pitch"|"influencer"|"content_series"),
-  tag (short descriptor like "Time-sensitive · 7-day window")""",
-    "Fields: title, urgency, what, why, angle, action, tag"
+  tag (short descriptor like "Time-sensitive · 7-day window")
+Use web search to ground every insight in a REAL, recent event, advisory, or news item — do not invent incidents.""",
+    "Fields: title, urgency, what, why, angle, action, tag",
+    use_search=True,
 )
 
 print("Fetching global trends...")
@@ -323,8 +334,10 @@ global_items = fetch(
 premium brand in {MONTH} {YEAR}.
 Consider: market size ($43B global, $81M India growing 13.9% CAGR), clean-label shift,
 zero-sugar formats, functional stacking, science credibility trend, competitor moves globally.
-Each object: title, urgency, what, angle, tag""",
-    "Fields: title, urgency, what, angle, tag"
+Each object: title, urgency, what, angle, tag
+Use web search to ground every trend in a REAL, recent source — do not invent developments.""",
+    "Fields: title, urgency, what, angle, tag",
+    use_search=True,
 )
 
 print("Fetching competitor intelligence (focused on new launches and brand moves)...")
@@ -332,11 +345,12 @@ competitor_items = fetch(
     f"""Generate 3 competitor intelligence insights for Osmo in India as of {TODAY}.
 EMPHASIS: Focus on NEW launches, new SKUs, new initiatives, or brand moves made by
 competitors in the last 14 days. Known context: Fast&Up popsicles with NOTO (Apr),
-hydRo365 launched by Rohit Sharma (Apr 30), Liquid I.V. India by HUL (full launch),
-Powerade Power Water (Nov 2025), Campa ₹10 SKU, MuscleBlaze Sports Hydr8 PRO,
-Protyze HYDRA-X all-in-one.
-Each object: title, urgency, what (what the competitor did NEW), gap (white space Osmo can claim), tag""",
-    "Fields: title, urgency, what, gap, tag"
+hydRo365 launched by Rohit Sharma (Apr 30), Liquid I.V. India by HUL, Reliance Spinner
+(₹10 RTD), MuscleBlaze Sports Hydr8 PRO, Protyze HYDRA-X all-in-one.
+Each object: title, urgency, what (what the competitor did NEW), gap (white space Osmo can claim), tag
+Use web search to confirm each move actually happened and is recent — do not invent launches or ad-spend figures.""",
+    "Fields: title, urgency, what, gap, tag",
+    use_search=True,
 )
 
 print("Fetching weekly actions...")
@@ -377,9 +391,34 @@ to their verified competitive intelligence database. Focus on:
 For each signal, return: brand (string), what (1-2 sentence summary of what they did),
 source_hint (where to find more — e.g. "brand D2C site" or "Amazon listing" or "Mint Lounge article"),
 threat ("disruptor"|"high-alert"|"watch"|"monitor"),
-days_ago_estimate (integer, your best estimate of how many days ago this happened, 0-14)""",
-    "Fields: brand, what, source_hint, threat, days_ago_estimate. 3-4 items."
+days_ago_estimate (integer, your best estimate of how many days ago this happened, 0-14)
+Use web search to find signals that are REAL and genuinely recent. In source_hint, name the actual source you found.""",
+    "Fields: brand, what, source_hint, threat, days_ago_estimate. 3-4 items.",
+    use_search=True,
 )
+
+print("Fetching competitor landscape (daily refreshed)...")
+landscape_items = fetch(
+    f"""Generate 6 competitor landscape cards for Osmo's India electrolyte market as of {TODAY}.
+For each brand, give their CURRENT positioning and most recent move in {MONTH} {YEAR} — not historical.
+Brands: Fast&Up, Liquid I.V. (HUL), Reliance Spinner, MuscleBlaze, hydRo365, Enerzal/ORS.
+For each: name (string), desc (2 sharp sentences on what they are doing RIGHT NOW and why it matters to Osmo),
+threat ("high"|"watch"|"pressure"|"monitor"|"disruptor"|"opportunity")
+Use web search to confirm each brand's current activity. Do NOT state launch dates, ad-spend figures, or moves you cannot find a real source for.""",
+    "Fields: name, desc, threat. Exactly 6 items.",
+    max_tokens=900,
+    use_search=True,
+)
+# Fallback to static if fetch fails (verified facts only — no unsourced figures)
+if not landscape_items or len(landscape_items) < 3:
+    landscape_items = [
+        {"name":"Fast&Up", "desc":"Effervescent tabs, pan-India. IPL playoff push with NOTO popsicle collab and Aam Panna flavour expansion — targeting Indian palate at mass price.", "threat":"high"},
+        {"name":"Liquid I.V. (HUL)", "desc":"HUL-backed US import (debut Feb 2025) in 3 flavours via Amazon/Blinkit. Unilever distribution + global brand authority make it a top-tier premium rival.", "threat":"disruptor"},
+        {"name":"Reliance Spinner", "desc":"₹10 RTD co-created with Muttiah Muralitharan, tied to 5 IPL teams. Validates the category at the bottom while Osmo holds premium.", "threat":"pressure"},
+        {"name":"MuscleBlaze", "desc":"India's largest sports nutrition brand scaling electrolytes (Sports Hydr8 PRO) via the HealthKart gym channel. Distribution moat is the threat.", "threat":"monitor"},
+        {"name":"hydRo365", "desc":"Rohit Sharma's clean-label daily-hydration brand (launched Apr 30, 2026). Celebrity firepower aimed squarely at Osmo's everyday-premium narrative.", "threat":"disruptor"},
+        {"name":"Enerzal / ORS", "desc":"Govt pushing ORS hard for heatwave season — creates a clear upgrade narrative Osmo can own with science messaging.", "threat":"opportunity"},
+    ]
 
 print("All data fetched. Building HTML...")
 
@@ -622,6 +661,11 @@ def entrants_html(entrants):
         date_obj = datetime.strptime(ent["date"], "%Y-%m-%d") if ent.get("date") else None
         date_label = date_obj.strftime("%b %d %Y").upper() if date_obj else "—"
         days_label = f"· {days_ago(ent['date'])} days ago" if ent.get("date") else ""
+        if ent.get("verified"):
+            v_obj = datetime.strptime(ent["verified"], "%Y-%m-%d")
+            verified_badge = f'<span class="verified-badge">✓ verified {v_obj.strftime("%d %b %y")}</span>'
+        else:
+            verified_badge = '<span class="verified-badge needs-review">⚠ needs re-verify</span>'
         rows.append(f"""
       <div class="entrant-row" data-threat="{esc(threat_key)}" data-bucket="{bucket}">
         <div class="entrant-timeline">
@@ -635,6 +679,7 @@ def entrants_html(entrants):
                 <span class="entrant-date">{esc(date_label)}</span>
                 <span class="entrant-days">{esc(days_label)}</span>
                 <span class="threat-pill" style="background:{bg};color:{fg};border:1px solid {border}">{esc(threat_label)}</span>
+                {verified_badge}
               </div>
               <div class="entrant-brand">{esc(ent['brand'])}</div>
               <div class="entrant-parent">{esc(ent['parent'])}</div>
@@ -693,6 +738,48 @@ def radar_html(items):
     return "\n".join(cards)
 
 
+def promoted_radar_html(radar_items):
+    """Show high-confidence (disruptor/high-alert) radar signals in the verified launches section."""
+    high_conf = [r for r in radar_items if r.get("threat") in ("disruptor", "high-alert")]
+    if not high_conf:
+        return ""
+    cards = []
+    for item in high_conf:
+        threat_key = item.get("threat", "high-alert")
+        dot_color, bg, fg, border = ENTRANT_THREAT.get(threat_key, ENTRANT_THREAT["watch"])
+        threat_label = {"disruptor": "Disruptor", "high-alert": "High Alert"}.get(threat_key, "Watch")
+        days_est = item.get("days_ago_estimate", 0)
+        days_label = f"~{days_est}d ago" if days_est else "this week"
+        cards.append(f"""
+      <div class="entrant-row" data-threat="{esc(threat_key)}" data-bucket="week">
+        <div class="entrant-timeline">
+          <div class="entrant-dot" style="background:{dot_color}"></div>
+          <div class="entrant-line"></div>
+        </div>
+        <div class="entrant-card" onclick="toggleEntrant(this)" style="border-color:{border};background:linear-gradient(180deg,{bg} 0%,var(--bg-3) 100%)">
+          <div class="entrant-head">
+            <div>
+              <div class="entrant-meta-row">
+                <span class="radar-unverified" style="font-size:8px;padding:2px 7px">⚡ AI-PROMOTED · UNVERIFIED</span>
+                <span class="entrant-days">{esc(days_label)}</span>
+                <span class="threat-pill" style="background:{bg};color:{fg};border:1px solid {border}">{esc(threat_label)}</span>
+              </div>
+              <div class="entrant-brand">{esc(item.get("brand", ""))}</div>
+            </div>
+          </div>
+          <div class="entrant-summary">{esc(item.get("what", ""))}</div>
+          <div class="entrant-body">
+            <div class="entrant-block"><div class="entrant-block-label">Where to verify</div><div class="entrant-block-text">{esc(item.get("source_hint", "Web search"))}</div></div>
+            <div class="card-actions">
+              <button class="card-action-btn" onclick="event.stopPropagation();brief('radar_verify')">Verify with Claude →</button>
+              <button class="card-action-btn" onclick="event.stopPropagation();brief('entrants_brief')">Response plan →</button>
+            </div>
+          </div>
+        </div>
+      </div>""")
+    return "\n".join(cards)
+
+
 def pricing_html(rows):
     sorted_rows = sorted(rows, key=lambda r: (not r.get("is_osmo"), r["price"]/max(r["servings"],1)))
     cheapest_comp = min(r["price"]/max(r["servings"],1) for r in rows if not r.get("is_osmo"))
@@ -744,7 +831,7 @@ def pricing_html(rows):
           {''.join(row_html)}
         </div>
         <div class="price-takeaway">{takeaway}</div>
-        <div class="price-disclaimer">Prices fetched from each brand's official listing · last verified May 2026 · edit PRICING_DATA in generate.py to update</div>"""
+        <div class="price-disclaimer">Prices from official brand listings · manually verified {PRICING_VERIFIED} (not auto-updated) · Osmo's per-serve lead depends on its current sale price holding — re-check monthly · edit PRICING_DATA + PRICING_VERIFIED in generate.py</div>"""
 
 
 def brief_js(prompts):
@@ -766,11 +853,12 @@ ACTIONS_HTML     = actions_html(actions)
 HEATMAP_HTML     = heatmap_html(heatmap)
 TRIGGERS_HTML    = triggers_html(triggers)
 TICKER_HTML      = ticker_items_html(india_items, global_items, radar_items)
-LANDSCAPE_HTML   = landscape_html(COMPETITORS_LANDSCAPE)
+LANDSCAPE_HTML   = landscape_html(landscape_items)
 EVENTS_HTML      = events_html(EVENTS_DATA)
 ENTRANTS_HTML    = entrants_html(ENTRANTS_DATA)
 PRICING_HTML     = pricing_html(PRICING_DATA)
 RADAR_HTML       = radar_html(radar_items)
+PROMOTED_RADAR_HTML = promoted_radar_html(radar_items)
 
 # Build JS brief prompt map from fetched actions
 for a in actions:
@@ -783,6 +871,11 @@ BRIEF_JS = brief_js(BRIEF_PROMPTS)
 EVENTS_COUNT = len(EVENTS_DATA)
 ENTRANTS_COUNT = len(ENTRANTS_DATA)
 RADAR_COUNT = len(radar_items)
+HIGH_CONF_RADAR = [r for r in radar_items if r.get("threat") in ("disruptor", "high-alert")]
+PROMOTED_NOTICE = (
+    f'''<div style="margin-bottom:16px;padding:10px 14px;background:rgba(199,91,91,.06);border:1px solid rgba(199,91,91,.2);border-radius:8px;font-family:var(--font-mono);font-size:10px;color:var(--accent-3);letter-spacing:.06em">'''
+    f'''⚡ {len(HIGH_CONF_RADAR)} high-confidence signal{"s" if len(HIGH_CONF_RADAR)!=1 else ""} auto-promoted from Radar below · unverified — verify before acting</div>'''
+) if HIGH_CONF_RADAR else ""
 
 
 html = f"""<!DOCTYPE html>
@@ -950,6 +1043,8 @@ nav{{position:sticky;top:32px;z-index:150;display:flex;align-items:center;justif
 .entrant-date{{font-family:var(--font-mono);font-size:10px;color:var(--text-2);letter-spacing:.08em;font-weight:500}}
 .entrant-days{{font-family:var(--font-mono);font-size:10px;color:var(--text-3)}}
 .threat-pill{{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:99px;font-weight:500}}
+.verified-badge{{font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:99px;font-weight:500;color:var(--accent-2);background:rgba(107,142,123,.12);border:1px solid rgba(107,142,123,.35)}}
+.verified-badge.needs-review{{color:var(--accent-3);background:rgba(212,165,116,.10);border-color:rgba(212,165,116,.35)}}
 .entrant-brand{{font-size:17px;font-weight:600;color:var(--text);line-height:1.25;margin-bottom:3px}}
 .entrant-parent{{font-size:11px;color:var(--text-3);line-height:1.45}}
 .entrant-pricing{{flex-shrink:0;text-align:right}}
@@ -1119,18 +1214,14 @@ footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padd
       <button class="tab-btn" onclick="switchTab('actions', this)">This Week</button>
     </div>
     <div class="panel active" id="panel-india">
+      <div class="panel-section-title">Today's India moments<span class="section-count">web-searched live · {TODAY}</span></div>
       {INDIA_HTML}
-      <div style="margin-top:24px">
-        <div class="panel-section-title">Live search · today's fresh India incidents</div>
-        <div class="ai-output" id="india-ai-output"></div>
-        <button class="ai-fetch-btn" onclick="fetchLive('india')">↻ Search India incidents now</button>
-      </div>
     </div>
     <div class="panel" id="panel-events">
       <div class="panel-section">
         <div class="panel-section-title">
           Combat &amp; hybrid sports calendar
-          <span class="section-count">{EVENTS_COUNT} events tracked</span>
+          <span class="section-count">{EVENTS_COUNT} events tracked · data reviewed {TODAY}</span>
         </div>
         <div class="filter-bar" id="events-filter">
           <button class="filter-chip active" data-filter="all">All</button>
@@ -1153,6 +1244,7 @@ footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padd
           Verified launches
           <span class="section-count">{ENTRANTS_COUNT} confirmed · last 90 days</span>
         </div>
+        {PROMOTED_NOTICE}
         <div class="filter-bar" id="entrants-filter">
           <button class="filter-chip active" data-filter="all">All</button>
           <button class="filter-chip" data-filter="week">This Week</button>
@@ -1161,6 +1253,7 @@ footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padd
           <button class="filter-chip" data-filter="high-alert">High Alert</button>
           <button class="filter-chip" data-filter="monitor">Monitor</button>
         </div>
+        {PROMOTED_RADAR_HTML}
         <div class="entrants-list" id="entrants-list">{ENTRANTS_HTML}</div>
       </div>
     </div>
@@ -1170,27 +1263,18 @@ footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padd
         <div class="comp-grid">{LANDSCAPE_HTML}</div>
       </div>
       <div class="panel-section">
-        <div class="panel-section-title">Competitor pricing — matched SKUs<span class="section-count">verified May 2026 · 6 brands</span></div>
+        <div class="panel-section-title">Competitor pricing — matched SKUs<span class="section-count">verified {PRICING_VERIFIED} · 6 brands</span></div>
         {PRICING_HTML}
       </div>
       <div class="panel-section">
-        <div class="panel-section-title">AI competitor intelligence · new moves this week</div>
+        <div class="panel-section-title">Competitor moves · new this week<span class="section-count">web-searched live · {TODAY}</span></div>
         {COMPETITOR_HTML}
-        <div style="margin-top:16px">
-          <div class="ai-output" id="competitors-ai-output"></div>
-          <button class="ai-fetch-btn" onclick="fetchLive('competitors')">↻ Search competitor news now</button>
-        </div>
       </div>
     </div>
     <div class="panel" id="panel-global">
       <div class="panel-section">
-        <div class="panel-section-title">Global category intelligence</div>
+        <div class="panel-section-title">Global category intelligence<span class="section-count">web-searched live · {TODAY}</span></div>
         {GLOBAL_HTML}
-      </div>
-      <div style="margin-top:24px">
-        <div class="panel-section-title">Live search · fresh global trends</div>
-        <div class="ai-output" id="global-ai-output"></div>
-        <button class="ai-fetch-btn" onclick="fetchLive('global')">↻ Search global trends now</button>
       </div>
     </div>
     <div class="panel" id="panel-actions">
@@ -1230,7 +1314,6 @@ footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padd
   <div class="footer-txt">Generated {TODAY} · {MODEL.upper()}</div>
 </footer>
 <script>
-  const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
   {BRIEF_JS}
   function switchTab(tab, btn) {{
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1278,41 +1361,10 @@ footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padd
       }});
     }});
   }});
-  const SYS = 'You are an electrolyte market intelligence analyst for Osmo India. Return a JSON array of 3 insight objects. Each: title, urgency, what, angle, tag. ONLY valid JSON.';
-  async function fetchLive(section) {{
-    const el = document.getElementById(section + '-ai-output');
-    el.innerHTML = '<div class="sk sk-card"></div><div class="sk sk-card" style="height:70px"></div>';
-    const prompts = {{
-      india: 'India 2026 heatwave + IPL ongoing. Generate 3 fresh India marketing moments for Osmo right now.',
-      global: 'Global electrolyte market $43B, India 13.9% CAGR. Generate 3 global trend insights for Osmo.',
-      competitors: 'India 2026 electrolyte launches: hydRo365, Liquid I.V. India, MuscleBlaze, Protyze. Generate 3 competitor insights — what should Osmo do?'
-    }};
-    try {{
-      const res = await fetch(CLAUDE_API, {{
-        method: 'POST',
-        headers: {{'Content-Type': 'application/json'}},
-        body: JSON.stringify({{model: 'claude-haiku-4-5-20251001', max_tokens: 800, system: SYS, messages: [{{role:'user', content: prompts[section]}}]}})
-      }});
-      const data = await res.json();
-      const raw = data.content?.find(b => b.type === 'text')?.text || '[]';
-      const items = JSON.parse(raw.replace(/```json|```/g,'').trim());
-      const urgClass = {{critical:'urg-critical',high:'urg-high',medium:'urg-medium',low:'urg-low'}};
-      el.innerHTML = items.map(i => `
-        <div class="insight-card" style="margin-bottom:10px">
-          <div class="insight-card-head" onclick="toggleCard(this)">
-            <div class="insight-card-title">${{i.title}}</div>
-            <span class="urgency-badge ${{urgClass[i.urgency]||'urg-medium'}}">${{i.urgency}}</span>
-          </div>
-          <div class="insight-card-body">
-            <div class="insight-block"><div class="insight-block-label">Summary</div><div class="insight-block-text">${{i.what}}</div></div>
-            <div class="insight-block"><div class="insight-block-label">Angle</div><div class="insight-block-text"><strong>${{i.angle}}</strong></div></div>
-            <div class="card-tag-row"><span class="card-tag">${{i.tag}}</span></div>
-          </div>
-        </div>`).join('');
-    }} catch(e) {{
-      el.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);padding:10px 0">Live search unavailable — needs API key in browser context.</div>';
-    }}
-  }}
+  // NOTE: Daily India / Global / Competitor / Radar content is generated
+  // server-side by generate.py using Anthropic's web_search tool, then baked
+  // into this page. The old in-browser "Search now" buttons were removed —
+  // they could never work on static hosting (no API key in the browser).
 </script>
 </body>
 </html>"""
