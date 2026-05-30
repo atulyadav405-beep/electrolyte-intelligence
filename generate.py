@@ -445,961 +445,555 @@ if not landscape_items or len(landscape_items) < 3:
 
 print("All data fetched. Building HTML...")
 
-
 # ════════════════════════════════════════════════════════════════════════════
-# HTML HELPER FUNCTIONS
+# PAGE TEMPLATE — OSMO_RADAR dashboard (plain string; tokens replaced below)
 # ════════════════════════════════════════════════════════════════════════════
-
-URG_CLASS = {"critical":"urg-critical", "high":"urg-high", "medium":"urg-medium", "low":"urg-low"}
-DOT_COLORS = {"red":"var(--red)", "gold":"var(--accent)", "green":"var(--accent-2)", "amber":"var(--accent-3)"}
-HEAT_COLORS = {"red":"var(--red)", "amber":"var(--accent-3)", "gold":"var(--accent)", "green":"var(--accent-2)"}
-LANDSCAPE_THREAT = {
-    "high":       ("High threat",        "rgba(199,91,91,.14)",   "#e07474",         "rgba(199,91,91,.3)"),
-    "watch":      ("Watch closely",       "rgba(212,165,116,.14)", "var(--accent-3)", "rgba(212,165,116,.28)"),
-    "pressure":   ("Price pressure",      "rgba(212,165,116,.14)", "var(--accent-3)", "rgba(212,165,116,.28)"),
-    "monitor":    ("Monitor",             "rgba(200,169,126,.12)", "var(--accent)",   "rgba(200,169,126,.22)"),
-    "disruptor":  ("Disruptor",           "rgba(199,91,91,.14)",   "#e07474",         "rgba(199,91,91,.3)"),
-    "opportunity":("Low · Opportunity",  "rgba(107,142,123,.14)", "var(--accent-2)", "rgba(107,142,123,.25)"),
-}
-
-
-def india_cards_html(items):
-    urgent = [i for i in items if i.get("urgency") in ("critical","high")]
-    ongoing = [i for i in items if i.get("urgency") in ("medium","low")]
-    def card(item, open_body=False):
-        uc = URG_CLASS.get(item.get("urgency","medium"), "urg-medium")
-        body_class = "insight-card-body open" if open_body else "insight-card-body"
-        return f"""
-        <div class="insight-card">
-          <div class="insight-card-head" onclick="toggleCard(this)">
-            <div class="insight-card-title">{esc(item.get('title',''))}</div>
-            <span class="urgency-badge {uc}">{esc(item.get('urgency',''))}</span>
-          </div>
-          <div class="{body_class}">
-            <div class="insight-block"><div class="insight-block-label">What's happening</div><div class="insight-block-text">{esc(item.get('what',''))}</div></div>
-            <div class="insight-block"><div class="insight-block-label">Why it matters</div><div class="insight-block-text">{esc(item.get('why',''))}</div></div>
-            <div class="insight-block"><div class="insight-block-label">Marketing angle</div><div class="insight-block-text"><strong>{esc(item.get('angle',''))}</strong></div></div>
-            <div class="card-tag-row"><span class="card-tag">{esc(item.get('tag',''))}</span></div>
-            <div class="card-actions">
-              <button class="card-action-btn" onclick="brief('{esc(item.get('action','weekly_brief'))}')">Get content brief →</button>
-            </div>
-          </div>
-        </div>"""
-    urgent_html = "\n".join(card(i, open_body=(j==0)) for j,i in enumerate(urgent))
-    ongoing_html = "\n".join(card(i) for i in ongoing)
-    return f"""
-      <div class="panel-section">
-        <div class="panel-section-title">Critical · act immediately</div>
-        {urgent_html}
-      </div>
-      <div class="panel-section">
-        <div class="panel-section-title">Ongoing opportunities</div>
-        {ongoing_html}
-      </div>"""
-
-
-def global_cards_html(items):
-    def card(item, first=False):
-        uc = URG_CLASS.get(item.get("urgency","medium"), "urg-medium")
-        body_class = "insight-card-body open" if first else "insight-card-body"
-        return f"""
-        <div class="insight-card">
-          <div class="insight-card-head" onclick="toggleCard(this)">
-            <div class="insight-card-title">{esc(item.get('title',''))}</div>
-            <span class="urgency-badge {uc}">{esc(item.get('urgency',''))}</span>
-          </div>
-          <div class="{body_class}">
-            <div class="insight-block"><div class="insight-block-label">What's happening</div><div class="insight-block-text">{esc(item.get('what',''))}</div></div>
-            <div class="insight-block"><div class="insight-block-label">Marketing angle</div><div class="insight-block-text"><strong>{esc(item.get('angle',''))}</strong></div></div>
-            <div class="card-tag-row"><span class="card-tag">{esc(item.get('tag',''))}</span></div>
-          </div>
-        </div>"""
-    return "\n".join(card(i, first=(j==0)) for j,i in enumerate(items))
-
-
-def competitor_cards_html(items):
-    def card(item, first=False):
-        uc = URG_CLASS.get(item.get("urgency","medium"), "urg-medium")
-        body_class = "insight-card-body open" if first else "insight-card-body"
-        return f"""
-        <div class="insight-card">
-          <div class="insight-card-head" onclick="toggleCard(this)">
-            <div class="insight-card-title">{esc(item.get('title',''))}</div>
-            <span class="urgency-badge {uc}">{esc(item.get('urgency',''))}</span>
-          </div>
-          <div class="{body_class}">
-            <div class="insight-block"><div class="insight-block-label">What they did</div><div class="insight-block-text">{esc(item.get('what',''))}</div></div>
-            <div class="insight-block"><div class="insight-block-label">White space for Osmo</div><div class="insight-block-text"><strong>{esc(item.get('gap',''))}</strong></div></div>
-            <div class="card-tag-row"><span class="card-tag">{esc(item.get('tag',''))}</span></div>
-          </div>
-        </div>"""
-    return "\n".join(card(i, first=(j==0)) for j,i in enumerate(items))
-
-
-def actions_html(items):
-    out = []
-    for i, item in enumerate(items, 1):
-        timing = item.get("timing","")
-        timing_class = "urg-critical" if timing=="Do today" else ("urg-high" if timing=="This week" else "urg-low")
-        out.append(f"""
-        <div class="action-item">
-          <div class="action-num">{i:02d}</div>
-          <div class="action-content">
-            <div class="action-title">{esc(item.get('title',''))}</div>
-            <div class="action-desc">{esc(item.get('description',''))}</div>
-            <div class="action-meta">
-              <span class="action-chip">{esc(item.get('channel',''))}</span>
-              <span class="action-chip">{esc(item.get('tone',''))}</span>
-              <span class="urgency-badge {timing_class}" style="font-size:9px;padding:3px 8px">{esc(timing)}</span>
-              <button class="action-cta" onclick="brief('{esc(item.get('brief_type','weekly_brief'))}')">Generate copy →</button>
-            </div>
-          </div>
-        </div>""")
-    return "\n".join(out)
-
-
-def heatmap_html(items):
-    rows = []
-    for item in items:
-        color = HEAT_COLORS.get(item.get("color_hint","gold"), "var(--accent)")
-        score = int(item.get("score",50))
-        rows.append(f"""
-      <div class="heat-row">
-        <div class="heat-label">{esc(item.get('label',''))}</div>
-        <div class="heat-bar-wrap"><div class="heat-bar" style="width:{score}%;background:{color}"></div></div>
-        <div class="heat-val" style="color:{color}">{score}</div>
-      </div>""")
-    return "\n".join(rows)
-
-
-def triggers_html(items):
-    rows = []
-    for item in items:
-        color = DOT_COLORS.get(item.get("dot_color","gold"), "var(--accent)")
-        rows.append(f"""
-      <div class="cal-item">
-        <div class="cal-date">{esc(item.get('month_label',''))}</div>
-        <div class="cal-dot" style="background:{color}"></div>
-        <div class="cal-text"><strong>{esc(item.get('title',''))}</strong> — {esc(item.get('description',''))}</div>
-      </div>""")
-    return "\n".join(rows)
-
-
-def ticker_items_html(india, global_, radar):
-    items = []
-    for i in india[:2]:
-        items.append(f'<div class="ticker-item">{esc(i.get("title","")[:70])} <span class="hot">{esc(i.get("urgency","").upper())}</span></div>')
-    for r in radar[:2]:
-        items.append(f'<div class="ticker-item">NEW · {esc(r.get("brand",""))} — {esc(r.get("what","")[:50])} <span class="hot">{esc(r.get("threat","watch").upper())}</span></div>')
-    for g in global_[:2]:
-        items.append(f'<div class="ticker-item">{esc(g.get("title","")[:60])} <span class="up">↑ trending</span></div>')
-    items += [
-        '<div class="ticker-item">India market 2026 <span class="val up">$81M</span> <span class="up">↑ 13.9% CAGR</span></div>',
-        '<div class="ticker-item">Global market <span class="val">$43B</span></div>',
-        '<div class="ticker-item">IPL 2026 <span class="val up">LIVE</span> through May 31</div>',
-        '<div class="ticker-item">Zero-sugar formats <span class="up">↑ 41% global share</span></div>',
-    ]
-    return "\n      ".join(items + items)  # doubled for seamless loop
-
-
-def landscape_html(brands):
-    cards = []
-    for b in brands:
-        label, bg, fg, border = LANDSCAPE_THREAT.get(b["threat"], LANDSCAPE_THREAT["monitor"])
-        cards.append(f"""
-          <div class="comp-card">
-            <div class="comp-name">{esc(b['name'])}</div>
-            <div class="comp-desc">{esc(b['desc'])}</div>
-            <span class="threat-chip" style="background:{bg};color:{fg};border:1px solid {border}">{esc(label)}</span>
-          </div>""")
-    return "\n".join(cards)
-
-
-def events_html(events):
-    cards = []
-    for ev in events:
-        sport_color = ev["color"]
-        if ev["date"]:
-            date_label = format_event_date(ev["date"])
-            d = days_until(ev["date"])
-            countdown = f"in {d} days" if d > 0 else ("today" if d == 0 else "past")
-            tbd_badge = ""
-        else:
-            date_label = "TBD"
-            countdown = ev.get("date_note","Date pending")
-            tbd_badge = '<span class="tbd-badge">⓲ Date TBD</span>'
-        tentative_cls = " is-tentative" if ev.get("tentative") else ""
-        tags_html = "".join(f'<span class="card-tag">{esc(t)}</span>' for t in ev.get("tags",[]))
-        cards.append(f"""
-      <div class="event-card{tentative_cls}" data-sport-type="{esc(ev['sport_type'])}" data-tentative="{1 if ev.get('tentative') else 0}" onclick="toggleEvent(this)">
-        <div class="event-accent" style="background:{sport_color}"></div>
-        <div class="event-head">
-          <div>
-            <div class="event-meta-row">
-              <span class="event-sport-chip" style="color:{sport_color};border-color:{sport_color}40;background:{sport_color}12">{esc(ev['sport_label'])}</span>
-              <span class="event-date">{date_label}</span>
-              <span class="event-countdown">{esc(countdown)}</span>
-              {tbd_badge}
-            </div>
-            <div class="event-name">{esc(ev['name'])}</div>
-            <div class="event-venue">{esc(ev['venue'])}</div>
-          </div>
-          <div class="hyd-score" style="color:{ev['hyd_color']};border-color:{ev['hyd_color']}40">
-            <div class="hyd-score-label">HYDRATION</div>
-            <div class="hyd-score-num">{ev['hyd_score']}<span style="font-size:11px;color:var(--text-3)">/10</span></div>
-          </div>
-        </div>
-        <div class="event-hover-angle">
-          <div class="hover-label">HYDRATION ANGLE — why it matters</div>
-          <div class="hover-text">{esc(ev['hover'])}</div>
-        </div>
-        <div class="event-body">
-          <div class="event-block"><div class="event-block-label">Organiser</div><div class="event-block-text">{esc(ev['organiser'])}</div></div>
-          <div class="event-block"><div class="event-block-label">Key athletes</div><div class="event-block-text">{esc(ev['athletes'])}</div></div>
-          <div class="event-block"><div class="event-block-label">Hydration angle</div><div class="event-block-text">{esc(ev['hydration'])}</div></div>
-          <div class="event-block accent">
-            <div class="event-block-label">Suggested Osmo activation</div>
-            <div class="event-block-text"><strong>{esc(ev['activation'])}</strong></div>
-          </div>
-          <div class="card-tag-row">{tags_html}</div>
-          <div class="card-actions">
-            <a class="card-action-btn verify-btn" href="{esc(ev['verify'])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Verify · Read more ↗</a>
-            <button class="card-action-btn" onclick="event.stopPropagation();brief('athlete_tieup')">Athlete tie-up brief →</button>
-            <button class="card-action-btn" onclick="event.stopPropagation();brief('events_brief')">Full activation plan →</button>
-          </div>
-        </div>
-      </div>""")
-    return "\n".join(cards)
-
-
-def entrants_html(entrants):
-    rows = []
-    for ent in entrants:
-        threat_key = ent["threat"]
-        dot_color, bg, fg, border = ENTRANT_THREAT.get(threat_key, ENTRANT_THREAT["monitor"])
-        threat_label = {"disruptor":"Disruptor","high-alert":"High Alert","watch":"Watch","monitor":"Monitor"}.get(threat_key, threat_key)
-        bucket = "month" if days_ago(ent["date"]) <= 30 else "older"
-        if days_ago(ent["date"]) <= 7:
-            bucket = "week"
-        date_obj = datetime.strptime(ent["date"], "%Y-%m-%d") if ent.get("date") else None
-        date_label = date_obj.strftime("%b %d %Y").upper() if date_obj else "—"
-        days_label = f"· {days_ago(ent['date'])} days ago" if ent.get("date") else ""
-        if ent.get("verified"):
-            v_obj = datetime.strptime(ent["verified"], "%Y-%m-%d")
-            verified_badge = f'<span class="verified-badge">✓ verified {v_obj.strftime("%d %b %y")}</span>'
-        else:
-            verified_badge = '<span class="verified-badge needs-review">⚠ needs re-verify</span>'
-        rows.append(f"""
-      <div class="entrant-row" data-threat="{esc(threat_key)}" data-bucket="{bucket}">
-        <div class="entrant-timeline">
-          <div class="entrant-dot" style="background:{dot_color}"></div>
-          <div class="entrant-line"></div>
-        </div>
-        <div class="entrant-card" onclick="toggleEntrant(this)">
-          <div class="entrant-head">
-            <div>
-              <div class="entrant-meta-row">
-                <span class="entrant-date">{esc(date_label)}</span>
-                <span class="entrant-days">{esc(days_label)}</span>
-                <span class="threat-pill" style="background:{bg};color:{fg};border:1px solid {border}">{esc(threat_label)}</span>
-                {verified_badge}
-              </div>
-              <div class="entrant-brand">{esc(ent['brand'])}</div>
-              <div class="entrant-parent">{esc(ent['parent'])}</div>
-            </div>
-            <div class="entrant-pricing">
-              <div class="entrant-mrp">{esc(ent['mrp'])}</div>
-              <div class="entrant-pser">{esc(ent['pser'])}</div>
-            </div>
-          </div>
-          <div class="entrant-summary">{esc(ent['summary'])}</div>
-          <div class="entrant-body">
-            <div class="entrant-grid">
-              <div class="entrant-block"><div class="entrant-block-label">Claims</div><div class="entrant-block-text">{esc(ent['claims'])}</div></div>
-              <div class="entrant-block"><div class="entrant-block-label">Distribution</div><div class="entrant-block-text">{esc(ent['distribution'])}</div></div>
-              <div class="entrant-block"><div class="entrant-block-label">Target segment</div><div class="entrant-block-text">{esc(ent['target'])}</div></div>
-              <div class="entrant-block accent"><div class="entrant-block-label">vs. Osmo</div><div class="entrant-block-text"><strong>{esc(ent['vs_osmo'])}</strong></div></div>
-            </div>
-            <div class="card-actions">
-              <a class="card-action-btn verify-btn" href="{esc(ent['verify'])}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Verify · Read more ↗</a>
-              <button class="card-action-btn" onclick="event.stopPropagation();brief('entrants_brief')">Response plan →</button>
-              <button class="card-action-btn" onclick="event.stopPropagation();brief('competitor_alert')">Brief Osmo team →</button>
-            </div>
-          </div>
-        </div>
-      </div>""")
-    return "\n".join(rows)
-
-
-def radar_html(items):
-    """Top-of-page RADAR section showing AI-flagged new launches this week."""
-    if not items:
-        return '<div style="padding:20px;color:var(--text-3);font-family:var(--font-mono);font-size:11px">No new signals detected this morning. Check back tomorrow.</div>'
-    cards = []
-    for item in items:
-        threat_key = item.get("threat","watch")
-        dot_color, bg, fg, border = ENTRANT_THREAT.get(threat_key, ENTRANT_THREAT["watch"])
-        threat_label = {"disruptor":"Disruptor","high-alert":"High Alert","watch":"Watch","monitor":"Monitor"}.get(threat_key, threat_key)
-        days_est = item.get("days_ago_estimate", 0)
-        days_label = f"~{days_est}d ago" if days_est else "this week"
-        cards.append(f"""
-        <div class="radar-card">
-          <div class="radar-card-head">
-            <div class="radar-meta">
-              <span class="radar-unverified">⚠ UNVERIFIED · AI-flagged</span>
-              <span class="radar-days">{esc(days_label)}</span>
-              <span class="threat-pill" style="background:{bg};color:{fg};border:1px solid {border}">{esc(threat_label)}</span>
-            </div>
-            <div class="radar-brand">{esc(item.get('brand',''))}</div>
-          </div>
-          <div class="radar-summary">{esc(item.get('what',''))}</div>
-          <div class="radar-actions">
-            <div class="radar-source-hint"><span class="hint-label">Where to verify:</span> {esc(item.get('source_hint','Web search'))}</div>
-            <button class="card-action-btn" onclick="brief('radar_verify')">Verify with Claude →</button>
-          </div>
-        </div>""")
-    return "\n".join(cards)
-
-
-def promoted_radar_html(radar_items):
-    """Show high-confidence (disruptor/high-alert) radar signals in the verified launches section."""
-    high_conf = [r for r in radar_items if r.get("threat") in ("disruptor", "high-alert")]
-    if not high_conf:
-        return ""
-    cards = []
-    for item in high_conf:
-        threat_key = item.get("threat", "high-alert")
-        dot_color, bg, fg, border = ENTRANT_THREAT.get(threat_key, ENTRANT_THREAT["watch"])
-        threat_label = {"disruptor": "Disruptor", "high-alert": "High Alert"}.get(threat_key, "Watch")
-        days_est = item.get("days_ago_estimate", 0)
-        days_label = f"~{days_est}d ago" if days_est else "this week"
-        cards.append(f"""
-      <div class="entrant-row" data-threat="{esc(threat_key)}" data-bucket="week">
-        <div class="entrant-timeline">
-          <div class="entrant-dot" style="background:{dot_color}"></div>
-          <div class="entrant-line"></div>
-        </div>
-        <div class="entrant-card" onclick="toggleEntrant(this)" style="border-color:{border};background:linear-gradient(180deg,{bg} 0%,var(--bg-3) 100%)">
-          <div class="entrant-head">
-            <div>
-              <div class="entrant-meta-row">
-                <span class="radar-unverified" style="font-size:8px;padding:2px 7px">⚡ AI-PROMOTED · UNVERIFIED</span>
-                <span class="entrant-days">{esc(days_label)}</span>
-                <span class="threat-pill" style="background:{bg};color:{fg};border:1px solid {border}">{esc(threat_label)}</span>
-              </div>
-              <div class="entrant-brand">{esc(item.get("brand", ""))}</div>
-            </div>
-          </div>
-          <div class="entrant-summary">{esc(item.get("what", ""))}</div>
-          <div class="entrant-body">
-            <div class="entrant-block"><div class="entrant-block-label">Where to verify</div><div class="entrant-block-text">{esc(item.get("source_hint", "Web search"))}</div></div>
-            <div class="card-actions">
-              <button class="card-action-btn" onclick="event.stopPropagation();brief('radar_verify')">Verify with Claude →</button>
-              <button class="card-action-btn" onclick="event.stopPropagation();brief('entrants_brief')">Response plan →</button>
-            </div>
-          </div>
-        </div>
-      </div>""")
-    return "\n".join(cards)
-
-
-def pricing_html(rows):
-    sorted_rows = sorted(rows, key=lambda r: (not r.get("is_osmo"), r["price"]/max(r["servings"],1)))
-    cheapest_comp = min(r["price"]/max(r["servings"],1) for r in rows if not r.get("is_osmo"))
-    osmo_per = next((r["price"]/max(r["servings"],1) for r in rows if r.get("is_osmo")), None)
-    row_html = []
-    for r in sorted_rows:
-        per = r["price"] / max(r["servings"],1)
-        discount = ""
-        if r["mrp"] and r["price"] < r["mrp"]:
-            pct = round((1 - r["price"]/r["mrp"])*100)
-            discount = f'<span class="price-off">-{pct}%</span>'
-        klass = "price-row price-osmo" if r.get("is_osmo") else "price-row"
-        osmo_tag = '<span class="price-brand-tag">OSMO</span>' if r.get("is_osmo") else ""
-        strike = f'<span class="price-mrp-strike">₹{r["mrp"]}</span>{discount}' if r["mrp"] != r["price"] else ""
-        row_html.append(f"""
-        <div class="{klass}">
-          <div class="price-cell price-brand">{esc(r['brand'])} {osmo_tag}</div>
-          <div class="price-cell price-sku">
-            <div class="price-sku-name">{esc(r['sku'])}</div>
-            <div class="price-pack">{esc(r['pack'])}</div>
-          </div>
-          <div class="price-cell price-mrp">
-            <div class="price-mrp-val">₹{r['price']}</div>
-            <div class="price-mrp-sub">{strike}</div>
-          </div>
-          <div class="price-cell price-perserve">
-            <div class="price-perserve-val">₹{round(per)}</div>
-            <div class="price-perserve-lbl">per serve</div>
-          </div>
-          <div class="price-cell price-link-cell">
-            <a class="price-link" href="{esc(r['link'])}" target="_blank" rel="noopener">View on {esc(r['source'])} ↗</a>
-          </div>
-        </div>""")
-    if osmo_per is not None and osmo_per <= cheapest_comp:
-        takeaway = f"<strong>Osmo is the cheapest premium option per serve</strong> at ₹{round(osmo_per)} — undercutting every listed competitor while keeping science depth (Taurine + ZMA + B-complex) they don't have."
-    elif osmo_per is not None:
-        takeaway = f"Osmo at <strong>₹{round(osmo_per)}/serve</strong> sits ₹{round(osmo_per-cheapest_comp)} above the cheapest mass option (₹{round(cheapest_comp)}) — premium, not bargain. Lead with science depth, not price."
-    else:
-        takeaway = ""
-    return f"""
-        <div class="price-grid">
-          <div class="price-row price-header">
-            <div class="price-cell">Brand</div>
-            <div class="price-cell">SKU</div>
-            <div class="price-cell">Price</div>
-            <div class="price-cell">Per serve</div>
-            <div class="price-cell">Source</div>
-          </div>
-          {''.join(row_html)}
-        </div>
-        <div class="price-takeaway">{takeaway}</div>
-        <div class="price-disclaimer">Prices from official brand listings · manually verified {PRICING_VERIFIED} (not auto-updated) · Osmo's per-serve lead depends on its current sale price holding — re-check monthly · edit PRICING_DATA + PRICING_VERIFIED in generate.py</div>"""
-
-
-def brief_js(prompts):
-    lines = []
-    for k, v in prompts.items():
-        safe = v.replace("'", "\\'").replace("\n", " ")
-        lines.append(f"    '{k}': '{safe}'")
-    return "const BRIEF_PROMPTS = {\n" + ",\n".join(lines) + "\n  };"
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# ASSEMBLE
-# ════════════════════════════════════════════════════════════════════════════
-
-INDIA_HTML       = india_cards_html(india_items)
-GLOBAL_HTML      = global_cards_html(global_items)
-COMPETITOR_HTML  = competitor_cards_html(competitor_items)
-ACTIONS_HTML     = actions_html(actions)
-HEATMAP_HTML     = heatmap_html(heatmap)
-TRIGGERS_HTML    = triggers_html(triggers)
-TICKER_HTML      = ticker_items_html(india_items, global_items, radar_items)
-LANDSCAPE_HTML   = landscape_html(landscape_items)
-EVENTS_HTML      = events_html(EVENTS_DATA)
-ENTRANTS_HTML    = entrants_html(ENTRANTS_DATA)
-PRICING_HTML     = pricing_html(PRICING_DATA)
-RADAR_HTML       = radar_html(radar_items)
-PROMOTED_RADAR_HTML = promoted_radar_html(radar_items)
-
-# Build JS brief prompt map from fetched actions
-for a in actions:
-    bt = a.get("brief_type","")
-    if bt and bt not in BRIEF_PROMPTS:
-        BRIEF_PROMPTS[bt] = f"Write detailed marketing copy for: {a.get('title','')}. Channel: {a.get('channel','')}. Tone: {a.get('tone','')}. Brand: Osmo electrolytes India."
-BRIEF_JS = brief_js(BRIEF_PROMPTS)
-
-# Counts for header badges
-EVENTS_COUNT = len(EVENTS_DATA)
-ENTRANTS_COUNT = len(ENTRANTS_DATA)
-RADAR_COUNT = len(radar_items)
-HIGH_CONF_RADAR = [r for r in radar_items if r.get("threat") in ("disruptor", "high-alert")]
-PROMOTED_NOTICE = (
-    f'''<div style="margin-bottom:16px;padding:10px 14px;background:rgba(199,91,91,.06);border:1px solid rgba(199,91,91,.2);border-radius:8px;font-family:var(--font-mono);font-size:10px;color:var(--accent-3);letter-spacing:.06em">'''
-    f'''⚡ {len(HIGH_CONF_RADAR)} high-confidence signal{"s" if len(HIGH_CONF_RADAR)!=1 else ""} auto-promoted from Radar below · unverified — verify before acting</div>'''
-) if HIGH_CONF_RADAR else ""
-
-
-html = f"""<!DOCTYPE html>
-<html lang="en">
+TEMPLATE = r'''<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Electrolyte Intelligence — {TODAY}</title>
-<meta name="description" content="Daily electrolyte market intelligence for India — heatwave alerts, combat & hybrid sport calendar, new entrant radar, and actionable marketing briefs for Osmo.">
+<title>OSMO_RADAR — Electrolyte Market Briefing · __TODAY__</title>
+<script>(function(){try{var t=localStorage.getItem('osmo-theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
-:root{{
-  --bg:#0F1115;--bg-2:#14171C;--bg-3:#1A1D23;--bg-4:#22262E;
-  --line:#2A2D35;--line-2:rgba(255,255,255,0.10);
-  --text:#E8E4DF;--text-2:#B5B0A8;--text-3:#8A8580;
-  --accent:#C8A97E;--accent-2:#6B8E7B;--accent-3:#D4A574;--red:#C75B5B;
-  --font-display:'Instrument Serif',Georgia,serif;
-  --font-body:'Inter',system-ui,sans-serif;
-  --font-mono:'JetBrains Mono','SF Mono',Menlo,monospace;
-  --max:1280px;--radius:12px;--t:300ms cubic-bezier(.22,.61,.36,1);
-}}
-html{{scroll-behavior:smooth}}
-body{{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.6;min-height:100vh;-webkit-font-smoothing:antialiased;background-image:radial-gradient(ellipse 1200px 600px at 80% -10%,rgba(200,169,126,0.06),transparent 70%),radial-gradient(ellipse 800px 500px at 0% 40%,rgba(107,142,123,0.04),transparent 70%);background-attachment:fixed}}
-.ticker-wrap{{border-bottom:1px solid var(--line);background:rgba(15,17,21,.85);backdrop-filter:blur(8px);overflow:hidden;height:32px;display:flex;align-items:center;position:sticky;top:0;z-index:200}}
-.ticker-label{{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--accent);padding:0 16px;border-right:1px solid var(--line);height:100%;display:flex;align-items:center;flex-shrink:0;white-space:nowrap;font-weight:500}}
-.ticker-label .pulse{{width:6px;height:6px;border-radius:50%;background:var(--red);margin-right:8px;animation:pulse 1.6s ease-in-out infinite}}
-@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.3}}}}
-.ticker-track{{display:flex;gap:0;animation:ticker 60s linear infinite;white-space:nowrap}}
-.ticker-track:hover{{animation-play-state:paused}}
-.ticker-item{{font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-2);padding:0 24px;border-right:1px solid var(--line);height:32px;display:flex;align-items:center;gap:8px}}
-.ticker-item .val{{color:var(--text)}}.ticker-item .up{{color:var(--accent-2)}}.ticker-item .hot{{color:var(--red)}}
-@keyframes ticker{{from{{transform:translateX(0)}}to{{transform:translateX(-50%)}}}}
-nav{{position:sticky;top:32px;z-index:150;display:flex;align-items:center;justify-content:space-between;padding:18px 48px;background:rgba(15,17,21,0.72);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line)}}
-.nav-brand{{display:flex;flex-direction:column;gap:2px}}
-.nav-brand .brand-name{{font-family:var(--font-display);font-size:20px;letter-spacing:-.01em;color:var(--text);font-style:italic}}
-.nav-brand .brand-sub{{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;color:var(--text-3);text-transform:uppercase}}
-.nav-links{{display:flex;gap:28px;list-style:none}}
-.nav-links a{{font-size:12px;color:var(--text-3);text-decoration:none;letter-spacing:.04em;transition:color var(--t);font-weight:500}}
-.nav-links a:hover,.nav-links a.active{{color:var(--text)}}
-.nav-right{{display:flex;align-items:center;gap:12px}}
-.live-pill{{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;color:var(--accent-2);border:1px solid rgba(107,142,123,.35);background:rgba(107,142,123,.08);padding:5px 10px;border-radius:99px;letter-spacing:.1em;text-transform:uppercase}}
-.live-pill .live-dot{{width:6px;height:6px;border-radius:50%;background:var(--accent-2);animation:pulse 1.8s ease-in-out infinite}}
-.date-pill{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:.06em;border:1px solid var(--line);padding:5px 12px;border-radius:99px}}
-.refresh-btn{{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--accent);background:transparent;border:1px solid rgba(200,169,126,.3);padding:6px 14px;border-radius:99px;cursor:pointer;transition:all var(--t);text-transform:uppercase;display:flex;align-items:center;gap:6px}}
-.refresh-btn:hover{{background:rgba(200,169,126,.1);border-color:rgba(200,169,126,.55);transform:translateY(-1px)}}
-.spin{{display:inline-block}}.spinning .spin{{animation:rotate .8s linear infinite}}
-@keyframes rotate{{to{{transform:rotate(360deg)}}}}
-.hero{{max-width:var(--max);margin:0 auto;padding:80px 48px 64px;display:grid;grid-template-columns:1.2fr 1fr;gap:64px;align-items:end;border-bottom:1px solid var(--line)}}
-.hero-kicker{{font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-weight:500}}
-.kicker-dot{{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite}}
-.hero h1{{font-family:var(--font-display);font-size:clamp(40px,4.6vw,68px);line-height:1.04;letter-spacing:-.02em;color:var(--text);margin-bottom:24px;font-weight:400}}
-.hero h1 em{{font-style:italic;color:var(--accent)}}
-.hero-desc{{font-size:15px;color:var(--text-2);line-height:1.7;max-width:480px}}
-.hero-stats{{display:flex;flex-direction:column;gap:0;align-self:stretch;justify-content:center}}
-.hero-stat-row{{display:flex;justify-content:space-between;align-items:center;padding:18px 0;border-bottom:1px solid var(--line)}}
-.hero-stat-row:first-child{{border-top:1px solid var(--line)}}
-.hero-stat-left{{display:flex;flex-direction:column;gap:4px}}
-.stat-label{{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;color:var(--text-3);text-transform:uppercase;font-weight:500}}
-.stat-trend{{font-family:var(--font-mono);font-size:10px;color:var(--accent-2)}}
-.stat-trend.dn{{color:var(--accent-3)}}
-.stat-right{{display:flex;align-items:center;gap:14px}}
-.stat-value{{font-family:var(--font-display);font-size:32px;color:var(--text);letter-spacing:-.02em;line-height:1}}
-.stat-value.sm{{font-size:22px}}
-.spark{{height:28px;width:80px}}
-.spark path{{fill:none;stroke:var(--accent);stroke-width:1.5}}
-.spark.green path{{stroke:var(--accent-2)}}.spark.red path{{stroke:var(--red)}}
-.spark .fill{{fill:var(--accent);opacity:.12;stroke:none}}
-.spark.green .fill{{fill:var(--accent-2);opacity:.12}}
-.alert-banner{{max-width:var(--max);margin:0 auto;display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,rgba(199,91,91,.08),rgba(199,91,91,.02));border-bottom:1px solid rgba(199,91,91,.18);padding:14px 48px}}
-.alert-tag{{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;color:var(--red);border:1px solid rgba(199,91,91,.35);padding:4px 10px;border-radius:99px;text-transform:uppercase;flex-shrink:0;background:rgba(199,91,91,.08);font-weight:500}}
-.alert-text{{font-size:13px;color:var(--text-2)}}.alert-text strong{{color:var(--text);font-weight:500}}
-.main{{max-width:var(--max);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0;min-height:calc(100vh - 220px)}}
-.content-area{{border-right:1px solid var(--line);padding:0;min-width:0}}
-.tabs{{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;background:rgba(15,17,21,.65);backdrop-filter:blur(8px);position:sticky;top:96px;z-index:90}}
-.tabs::-webkit-scrollbar{{display:none}}
-.tab-btn{{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);background:transparent;border:none;border-bottom:2px solid transparent;padding:18px 22px;cursor:pointer;white-space:nowrap;transition:all var(--t);margin-bottom:-1px;font-weight:500}}
-.tab-btn:hover{{color:var(--text-2)}}.tab-btn.active{{color:var(--accent);border-bottom-color:var(--accent)}}
-.tab-btn .badge-num{{display:inline-block;font-size:9px;color:var(--text-3);margin-left:6px;font-weight:400}}
-.panel{{display:none;padding:36px 44px;animation:fadeUp .35s ease forwards}}
-.panel.active{{display:block}}
-.panel-section{{margin-bottom:44px}}
-.panel-section-title{{font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid var(--line);font-weight:500;display:flex;justify-content:space-between;align-items:center}}
-.section-count{{color:var(--text-2);font-weight:400}}
-.insight-card{{background:var(--bg-3);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:all var(--t)}}
-.insight-card:hover{{border-color:var(--line-2);transform:translateY(-1px);box-shadow:0 4px 24px rgba(0,0,0,.18)}}
-.insight-card-head{{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;gap:16px;cursor:pointer}}
-.insight-card-title{{font-size:14px;font-weight:500;color:var(--text);line-height:1.4;flex:1}}
-.urgency-badge{{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:99px;flex-shrink:0;font-weight:500}}
-.urg-critical{{background:rgba(199,91,91,.14);color:#e07474;border:1px solid rgba(199,91,91,.3)}}
-.urg-high{{background:rgba(212,165,116,.14);color:var(--accent-3);border:1px solid rgba(212,165,116,.3)}}
-.urg-medium{{background:rgba(200,169,126,.12);color:var(--accent);border:1px solid rgba(200,169,126,.25)}}
-.urg-low{{background:rgba(107,142,123,.14);color:var(--accent-2);border:1px solid rgba(107,142,123,.28)}}
-.insight-card-body{{padding:0 20px 18px;display:none}}.insight-card-body.open{{display:block}}
-.insight-block{{margin-bottom:14px}}
-.insight-block-label{{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500}}
-.insight-block-text{{font-size:13px;color:var(--text-2);line-height:1.6}}.insight-block-text strong{{color:var(--text);font-weight:500}}
-.card-actions{{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);flex-wrap:wrap}}
-.card-action-btn{{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;color:var(--accent);background:transparent;border:1px solid rgba(200,169,126,.25);padding:7px 13px;border-radius:99px;cursor:pointer;transition:all var(--t);text-decoration:none;display:inline-flex;align-items:center;gap:4px}}
-.card-action-btn:hover{{background:rgba(200,169,126,.1);border-color:rgba(200,169,126,.5);transform:translateY(-1px)}}
-.card-action-btn.verify-btn{{color:var(--accent-2);border-color:rgba(107,142,123,.35);background:rgba(107,142,123,.06)}}
-.card-action-btn.verify-btn:hover{{background:rgba(107,142,123,.14);border-color:rgba(107,142,123,.6);color:var(--accent-2)}}
-.tbd-badge{{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;color:var(--accent-3);background:rgba(212,165,116,.1);border:1px solid rgba(212,165,116,.28);padding:2px 8px;border-radius:99px;text-transform:uppercase;font-weight:500}}
-.event-card.is-tentative{{background:linear-gradient(180deg,var(--bg-3) 0%,rgba(212,165,116,.02) 100%)}}
-.event-card.is-tentative .event-name{{opacity:.95}}
-.card-tag-row{{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}}
-.card-tag{{font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;color:var(--text-3);background:var(--bg-4);padding:4px 9px;border-radius:99px}}
-.comp-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}
-.comp-card{{background:var(--bg-3);border:1px solid var(--line);border-radius:var(--radius);padding:18px;transition:all var(--t)}}
-.comp-card:hover{{border-color:var(--line-2);transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.16)}}
-.comp-name{{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px}}
-.comp-desc{{font-size:12px;color:var(--text-2);line-height:1.55;margin-bottom:12px}}
-.threat-chip{{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;padding:3px 9px;border-radius:99px;font-weight:500}}
-.action-item{{display:flex;gap:18px;padding:18px 0;border-bottom:1px solid var(--line);align-items:flex-start}}
-.action-num{{font-family:var(--font-display);font-size:36px;color:var(--bg-4);line-height:1;flex-shrink:0;width:40px;text-align:center;font-style:italic}}
-.action-content{{flex:1}}
-.action-title{{font-size:14px;color:var(--text);margin-bottom:6px;font-weight:500}}
-.action-desc{{font-size:13px;color:var(--text-2);line-height:1.6}}
-.action-meta{{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}}
-.action-chip{{font-family:var(--font-mono);font-size:9px;letter-spacing:.07em;color:var(--text-3);border:1px solid var(--line);padding:4px 9px;border-radius:99px}}
-.action-cta{{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--accent);background:transparent;border:1px solid rgba(200,169,126,.3);padding:5px 11px;border-radius:99px;cursor:pointer;transition:all var(--t)}}
-.action-cta:hover{{background:rgba(200,169,126,.1);transform:translateY(-1px)}}
-.events-grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px}}
-.event-card{{position:relative;background:var(--bg-3);border:1px solid var(--line);border-radius:var(--radius);padding:0;overflow:hidden;cursor:pointer;transition:all var(--t)}}
-.event-card:hover{{border-color:var(--line-2);transform:translateY(-2px) scale(1.005);box-shadow:0 8px 28px rgba(0,0,0,.22)}}
-.event-accent{{position:absolute;top:0;left:0;right:0;height:2px;z-index:2}}
-.event-head{{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 14px;align-items:flex-start}}
-.event-meta-row{{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}}
-.event-sport-chip{{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:3px 9px;border-radius:99px;border:1px solid;font-weight:500}}
-.event-date{{font-family:var(--font-mono);font-size:10px;color:var(--text-2);letter-spacing:.08em;font-weight:500}}
-.event-countdown{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:.06em}}
-.event-name{{font-size:16px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:4px}}
-.event-venue{{font-size:11px;color:var(--text-3);line-height:1.4}}
-.hyd-score{{flex-shrink:0;border:1px solid;border-radius:8px;padding:6px 10px;text-align:center;min-width:60px}}
-.hyd-score-label{{font-family:var(--font-mono);font-size:7px;letter-spacing:.18em;color:var(--text-3);font-weight:500}}
-.hyd-score-num{{font-family:var(--font-display);font-size:24px;line-height:1.1;font-style:italic}}
-.event-hover-angle{{max-height:0;overflow:hidden;transition:max-height var(--t),padding var(--t);padding:0 20px;border-top:1px dashed transparent}}
-.event-card:hover .event-hover-angle:not(.is-open){{max-height:120px;padding:12px 20px;border-top-color:var(--line)}}
-.event-card.expanded .event-hover-angle{{max-height:0;padding:0 20px;border-top-color:transparent}}
-.hover-label{{font-family:var(--font-mono);font-size:8px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:4px;font-weight:500}}
-.hover-text{{font-size:12px;color:var(--text-2);line-height:1.55}}
-.event-body{{display:none;padding:14px 20px 18px;border-top:1px solid var(--line);background:rgba(255,255,255,.015)}}
-.event-card.expanded .event-body{{display:block}}
-.event-block{{margin-bottom:12px}}
-.event-block.accent{{background:rgba(200,169,126,.04);border-left:2px solid var(--accent);padding:10px 12px;border-radius:0 4px 4px 0;margin-top:14px}}
-.event-block-label{{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px;font-weight:500}}
-.event-block-text{{font-size:12px;color:var(--text-2);line-height:1.55}}.event-block-text strong{{color:var(--text);font-weight:500}}
-.filter-bar{{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--line)}}
-.filter-chip{{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);background:transparent;border:1px solid var(--line);padding:7px 14px;border-radius:99px;cursor:pointer;transition:all var(--t);font-weight:500}}
-.filter-chip:hover{{color:var(--text-2);border-color:var(--line-2)}}
-.filter-chip.active{{color:var(--accent);border-color:rgba(200,169,126,.5);background:rgba(200,169,126,.08)}}
-.entrants-list{{display:flex;flex-direction:column;gap:0;position:relative}}
-.entrant-row{{display:grid;grid-template-columns:40px 1fr;gap:18px;position:relative}}
-.entrant-row.hidden{{display:none}}
-.entrant-timeline{{position:relative;display:flex;flex-direction:column;align-items:center}}
-.entrant-dot{{width:11px;height:11px;border-radius:50%;margin-top:24px;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line)}}
-.entrant-line{{flex:1;width:1px;background:var(--line);margin-top:4px;margin-bottom:0}}
-.entrant-row:last-child .entrant-line{{display:none}}
-.entrant-card{{background:var(--bg-3);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;cursor:pointer;transition:all var(--t)}}
-.entrant-card:hover{{border-color:var(--line-2);transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.16)}}
-.entrant-head{{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:10px}}
-.entrant-meta-row{{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}}
-.entrant-date{{font-family:var(--font-mono);font-size:10px;color:var(--text-2);letter-spacing:.08em;font-weight:500}}
-.entrant-days{{font-family:var(--font-mono);font-size:10px;color:var(--text-3)}}
-.threat-pill{{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:99px;font-weight:500}}
-.verified-badge{{font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:99px;font-weight:500;color:var(--accent-2);background:rgba(107,142,123,.12);border:1px solid rgba(107,142,123,.35)}}
-.verified-badge.needs-review{{color:var(--accent-3);background:rgba(212,165,116,.10);border-color:rgba(212,165,116,.35)}}
-.entrant-brand{{font-size:17px;font-weight:600;color:var(--text);line-height:1.25;margin-bottom:3px}}
-.entrant-parent{{font-size:11px;color:var(--text-3);line-height:1.45}}
-.entrant-pricing{{flex-shrink:0;text-align:right}}
-.entrant-mrp{{font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:500}}
-.entrant-pser{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-top:2px}}
-.entrant-summary{{font-size:13px;color:var(--text-2);line-height:1.6;margin-top:6px}}
-.entrant-body{{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}}
-.entrant-card.expanded .entrant-body{{display:block}}
-.entrant-grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}}
-.entrant-block{{background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}}
-.entrant-block.accent{{background:rgba(200,169,126,.06);border-color:rgba(200,169,126,.18);grid-column:1/-1}}
-.entrant-block-label{{font-family:var(--font-mono);font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;font-weight:500}}
-.entrant-block-text{{font-size:12px;color:var(--text-2);line-height:1.55}}.entrant-block-text strong{{color:var(--text);font-weight:500}}
-/* RADAR */
-.radar-section{{background:linear-gradient(180deg,rgba(199,91,91,.04) 0%,transparent 100%);border:1px solid rgba(199,91,91,.16);border-radius:var(--radius);padding:18px 20px;margin-bottom:32px}}
-.radar-banner{{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed rgba(199,91,91,.2)}}
-.radar-icon{{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:var(--red);background:rgba(199,91,91,.1);border:1px solid rgba(199,91,91,.3);padding:4px 10px;border-radius:99px;text-transform:uppercase;font-weight:500}}
-.radar-tagline{{font-size:12px;color:var(--text-2)}}
-.radar-tagline strong{{color:var(--text);font-weight:500}}
-.radar-card{{background:var(--bg-3);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;transition:all var(--t)}}
-.radar-card:hover{{border-color:var(--line-2);transform:translateY(-1px)}}
-.radar-card-head{{margin-bottom:8px}}
-.radar-meta{{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}}
-.radar-unverified{{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;color:var(--accent-3);background:rgba(212,165,116,.1);border:1px solid rgba(212,165,116,.28);padding:3px 8px;border-radius:99px;text-transform:uppercase;font-weight:500}}
-.radar-days{{font-family:var(--font-mono);font-size:10px;color:var(--text-3)}}
-.radar-brand{{font-size:15px;font-weight:600;color:var(--text)}}
-.radar-summary{{font-size:13px;color:var(--text-2);line-height:1.55;margin-bottom:10px}}
-.radar-actions{{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)}}
-.radar-source-hint{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:.04em}}
-.radar-source-hint .hint-label{{color:var(--text-2)}}
-/* PRICING */
-.price-grid{{background:var(--bg-3);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}}
-.price-row{{display:grid;grid-template-columns:130px 1fr 120px 110px 150px;gap:0;align-items:center;border-bottom:1px solid var(--line);transition:background var(--t)}}
-.price-row:last-child{{border-bottom:none}}
-.price-row:hover{{background:var(--bg-4)}}
-.price-row.price-header{{background:var(--bg-2);border-bottom:1px solid var(--line-2)}}
-.price-row.price-header .price-cell{{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-3);padding:12px 16px;font-weight:500}}
-.price-row.price-osmo{{background:linear-gradient(90deg,rgba(200,169,126,.07) 0%,rgba(200,169,126,.02) 100%);border-left:3px solid var(--accent)}}
-.price-row.price-osmo:hover{{background:linear-gradient(90deg,rgba(200,169,126,.12) 0%,rgba(200,169,126,.04) 100%)}}
-.price-cell{{padding:16px;font-size:13px;color:var(--text-2);min-width:0}}
-.price-brand{{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--text);text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}}
-.price-osmo .price-brand{{color:var(--accent)}}
-.price-brand-tag{{font-family:var(--font-mono);font-size:8px;letter-spacing:.14em;background:var(--accent);color:#0F1115;padding:3px 7px;border-radius:99px;font-weight:600}}
-.price-sku-name{{font-size:13px;color:var(--text);line-height:1.4;margin-bottom:4px;font-weight:500}}
-.price-pack{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:.04em}}
-.price-mrp-val{{font-family:var(--font-display);font-size:24px;color:var(--text);letter-spacing:-.01em;line-height:1;font-style:italic}}
-.price-osmo .price-mrp-val{{color:var(--accent)}}
-.price-mrp-sub{{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap}}
-.price-mrp-strike{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);text-decoration:line-through}}
-.price-off{{font-family:var(--font-mono);font-size:9px;color:var(--accent-2);background:rgba(107,142,123,.12);padding:2px 7px;border-radius:99px;letter-spacing:.04em;font-weight:500;border:1px solid rgba(107,142,123,.25)}}
-.price-perserve-val{{font-family:var(--font-display);font-size:22px;color:var(--text);line-height:1;font-style:italic}}
-.price-osmo .price-perserve-val{{color:var(--accent-2)}}
-.price-perserve-lbl{{font-family:var(--font-mono);font-size:9px;color:var(--text-3);letter-spacing:.1em;margin-top:4px;text-transform:uppercase}}
-.price-link{{font-family:var(--font-mono);font-size:10px;color:var(--accent);text-decoration:none;letter-spacing:.04em;border:1px solid rgba(200,169,126,.3);padding:7px 12px;border-radius:99px;display:inline-block;transition:all var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}}
-.price-link:hover{{background:rgba(200,169,126,.1);border-color:rgba(200,169,126,.55);transform:translateY(-1px)}}
-.price-takeaway{{font-size:13px;color:var(--text-2);line-height:1.65;padding:16px 18px;background:linear-gradient(90deg,rgba(200,169,126,.06),rgba(200,169,126,.01));border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;margin-top:4px}}
-.price-takeaway strong{{color:var(--text);font-weight:500}}
-.price-disclaimer{{font-family:var(--font-mono);font-size:9px;color:var(--text-3);letter-spacing:.06em;margin-top:12px;text-align:right}}
-.ai-fetch-btn{{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-2);background:var(--bg-3);border:1px solid var(--line-2);padding:11px 22px;border-radius:99px;cursor:pointer;transition:all var(--t);display:flex;align-items:center;gap:8px;width:100%;justify-content:center;font-weight:500}}
-.ai-fetch-btn:hover{{background:var(--bg-4);border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}}
-.ai-output{{margin-top:16px}}
-.sk{{background:linear-gradient(90deg,var(--bg-3) 0%,var(--bg-4) 50%,var(--bg-3) 100%);background-size:200% 100%;border-radius:8px;animation:shimmer 1.6s infinite linear}}
-@keyframes shimmer{{0%{{background-position:200% 0}}100%{{background-position:-200% 0}}}}
-.sk-card{{height:80px;margin-bottom:10px}}
-.sidebar{{padding:0;min-width:0}}
-.sidebar-block{{padding:28px 24px;border-bottom:1px solid var(--line)}}
-.sidebar-title{{font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);margin-bottom:18px;font-weight:500}}
-.heat-row{{display:flex;align-items:center;gap:10px;margin-bottom:12px}}
-.heat-label{{font-size:12px;color:var(--text-2);flex:1}}
-.heat-bar-wrap{{flex:1;background:var(--bg-3);border-radius:99px;height:5px;overflow:hidden}}
-.heat-bar{{height:5px;border-radius:99px;transition:width 1s cubic-bezier(.22,.61,.36,1)}}
-.heat-val{{font-family:var(--font-mono);font-size:11px;color:var(--text-3);min-width:28px;text-align:right;font-weight:500}}
-.cal-item{{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}}
-.cal-date{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);min-width:36px;padding-top:2px;font-weight:500;letter-spacing:.06em}}
-.cal-dot{{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,.05)}}
-.cal-text{{font-size:12px;color:var(--text-2);line-height:1.5}}.cal-text strong{{color:var(--text);font-weight:500}}
-footer{{max-width:var(--max);margin:0 auto;border-top:1px solid var(--line);padding:24px 48px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}}
-.footer-txt{{font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:.06em}}
-@keyframes fadeUp{{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
-.fade-in{{animation:fadeUp .55s ease forwards;opacity:0}}
-.delay-1{{animation-delay:.08s}}.delay-2{{animation-delay:.16s}}.delay-3{{animation-delay:.24s}}.delay-4{{animation-delay:.32s}}
-@media(max-width:1100px){{
-  .events-grid{{grid-template-columns:1fr}}.comp-grid{{grid-template-columns:1fr}}
-  .hero{{padding:60px 32px 48px;gap:40px}}
-}}
-@media(max-width:900px){{
-  nav{{padding:14px 20px;flex-wrap:wrap;gap:12px}}.nav-links{{display:none}}
-  .hero{{grid-template-columns:1fr;padding:40px 20px;gap:32px}}
-  .main{{grid-template-columns:1fr}}
-  .content-area{{border-right:none;border-bottom:1px solid var(--line)}}
-  .panel{{padding:24px 20px}}.alert-banner{{padding:12px 20px}}
-  .entrant-grid{{grid-template-columns:1fr}}.tabs{{top:32px}}
-  .price-row{{grid-template-columns:1fr 1fr;gap:6px;padding:14px 6px}}
-  .price-row.price-header{{display:none}}
-  .price-cell{{padding:6px 14px}}
-  .price-cell.price-brand{{grid-column:1 / -1;border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:4px}}
-  .price-cell.price-sku{{grid-column:1 / -1}}
-  .price-cell.price-link-cell{{grid-column:1 / -1;margin-top:6px}}
-  footer{{flex-direction:column;align-items:flex-start;padding:18px 20px}}
-}}
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --surface-2:#FFFFFF; --surface-3:#EEF0F3; --border:#E4E7EC; --border-2:#EEF0F3;
+  --text:#0B1020; --text-2:#3A4256; --text-3:#7C8398;
+  --primary:#1D4ED8; --primary-dim:#3B82F6; --primary-ink:#FFFFFF; --accent:#FF5A1F; --accent-2:#16A34A;
+  --crit:#E11D48; --crit-bg:#FFE4EA; --high:#C2410C; --high-bg:#FFEDE5; --med:#1D4ED8; --med-bg:#EAF0FF; --low:#5B6472; --low-bg:#EEF0F3;
+  --watch:#B45309; --watch-bg:#FFF4E0; --opp:#0F7A43; --opp-bg:#E6F6EC; --mono:#5B6472; --mono-bg:#EEF0F3;
+  --card-shadow:0 1px 2px rgba(11,16,32,.04),0 10px 30px -14px rgba(11,16,32,.13);
+  --obsidian:#0B1020; --demo-tx:#AFC2FF; --navbg:rgba(255,255,255,.88);
+  --d:'Archivo Narrow',sans-serif; --b:'Inter',sans-serif; --m:'JetBrains Mono',monospace; --rad:16px;
+}
+html[data-theme="dark"]{
+  --bg:#0E1014; --surface:#171A20; --surface-2:#1B1F26; --surface-3:#232831; --border:#2A2F39; --border-2:#20242C;
+  --text:#E8EAEE; --text-2:#A6ADB8; --text-3:#717A86;
+  --primary:#5B8DEF; --primary-dim:#3B82F6; --primary-ink:#08101F; --accent:#FF7A45; --accent-2:#34D17F;
+  --crit:#FF6B7A; --crit-bg:rgba(225,29,72,.18); --high:#FF8A5B; --high-bg:rgba(255,90,31,.16); --med:#7FA8FF; --med-bg:rgba(29,78,216,.22); --low:#9AA2AE; --low-bg:rgba(255,255,255,.06);
+  --watch:#FBBF24; --watch-bg:rgba(245,158,11,.16); --opp:#4ADE80; --opp-bg:rgba(34,197,94,.16); --mono:#9AA2AE; --mono-bg:rgba(255,255,255,.06);
+  --card-shadow:0 0 0 1px rgba(255,255,255,.04); --obsidian:#05070C; --demo-tx:#8AA6FF; --navbg:rgba(14,16,20,.85);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--b);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(900px 480px at 88% -8%,rgba(29,78,216,.06),transparent 62%),radial-gradient(700px 420px at -4% 24%,rgba(255,90,31,.05),transparent 60%);background-attachment:fixed;transition:background .3s,color .3s}
+.demo{background:var(--obsidian);color:var(--demo-tx);text-align:center;padding:7px;font-family:var(--m);font-size:11px;letter-spacing:.05em}
+.demo b{color:#fff}
+.ticker{background:var(--surface);border-bottom:1px solid var(--border);height:34px;display:flex;align-items:center;overflow:hidden}
+.ticker .lbl{background:var(--primary);color:#fff;height:100%;display:flex;align-items:center;padding:0 14px;font-family:var(--m);font-weight:700;font-size:10px;letter-spacing:.1em;flex-shrink:0}
+.ticker .track{display:flex;white-space:nowrap;animation:tk 42s linear infinite}.ticker .track:hover{animation-play-state:paused}
+.ticker .it{padding:0 20px;font-family:var(--m);font-size:11px;display:flex;align-items:center;gap:7px;color:var(--text-2)}
+.ticker .it b{color:var(--text)}.ticker .hot{color:var(--accent)}.ticker .up{color:var(--accent-2)}
+@keyframes tk{to{transform:translateX(-50%)}}
+nav{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:13px 28px;background:var(--navbg);backdrop-filter:saturate(140%) blur(12px);border-bottom:1px solid var(--border);gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .rad{width:30px;height:30px;border-radius:8px;background:var(--primary);color:var(--primary-ink);display:flex;align-items:center;justify-content:center;font-size:16px}
+.brand .nm{font-family:var(--m);font-weight:700;font-size:15px;letter-spacing:.04em}.brand .nm b{color:var(--primary)}
+.brand .live{margin-left:4px;color:var(--primary)}
+.tabs{display:flex;gap:3px;flex:1;justify-content:center}
+.tab{font-family:var(--m);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);background:none;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;transition:.18s}
+.tab:hover{color:var(--text-2);background:var(--surface-3)}.tab.on{color:var(--primary-ink);background:var(--primary)}
+.tab .n{font-size:9px;opacity:.7;margin-left:3px}
+.nav-r{display:flex;align-items:center;gap:8px}
+.pill{font-family:var(--m);font-size:10px;padding:6px 10px;border-radius:99px;letter-spacing:.05em;border:1px solid var(--border)}
+.pill.live{color:var(--primary);display:flex;align-items:center;gap:6px;border-color:var(--border)}
+.pill.live .d{width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse 1.5s infinite}
+.pill.date{color:var(--text-3)}
+.tgl{font-family:var(--m);font-size:13px;background:var(--surface-3);border:1px solid var(--border);color:var(--text-2);width:34px;height:30px;border-radius:8px;cursor:pointer;transition:.18s}
+.tgl:hover{color:var(--primary);border-color:var(--primary)}
+@keyframes pulse{50%{opacity:.3}}
+.wrap{max-width:1280px;margin:0 auto;padding:26px 28px 80px}
+.panel{display:none;animation:fade .35s ease}.panel.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 16px;flex-wrap:wrap;gap:8px}
+.sechead .ey{font-family:var(--m);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);display:flex;align-items:center;gap:7px}
+.sechead .ey .d{width:6px;height:6px;border-radius:50%;background:var(--primary)}
+.sechead h2{font-family:var(--d);font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1}
+.sechead .rt{font-family:var(--m);font-size:10px;letter-spacing:.07em;color:var(--text-3);text-transform:uppercase}
+.subhead{font-family:var(--d);font-weight:700;font-size:19px;margin:28px 0 13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.subhead .tagn{font-family:var(--m);font-size:9px;font-weight:700;color:var(--text-3);background:var(--surface-3);padding:4px 9px;border-radius:6px;letter-spacing:.05em}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad);padding:22px;box-shadow:var(--card-shadow)}
+.grid{display:grid;gap:16px}
+.alert{display:flex;align-items:center;gap:12px;padding:13px 18px;border:1px solid var(--crit);background:var(--crit-bg);border-radius:12px;margin-bottom:18px;cursor:pointer}
+.alert .ic{color:var(--crit);font-size:15px}.alert .tx{font-family:var(--m);font-size:12px;letter-spacing:.04em;color:var(--crit);flex:1}.alert .ar{color:var(--crit)}
+.kpis{grid-template-columns:repeat(4,1fr);margin-bottom:18px}
+.kpi{padding:18px 20px}
+.kpi .lab{font-family:var(--m);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);display:flex;justify-content:space-between}
+.kpi .lab .cagr{color:var(--accent-2)}
+.kpi .val{font-family:var(--d);font-weight:800;font-size:38px;line-height:1;margin:8px 0 2px}
+.kpi.p .val{color:var(--primary)}.kpi.o .val{color:var(--accent)}.kpi.r .val{color:var(--crit)}.kpi.g .val{color:var(--accent-2)}
+.kpi .sub{font-family:var(--m);font-size:10px;color:var(--text-3)}
+.two{grid-template-columns:2fr 1fr}
+.land{grid-template-columns:repeat(3,1fr)}
+.btn{font-family:var(--m);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:12px 18px;border-radius:9px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.18s;text-decoration:none}
+.btn.primary{background:var(--primary);color:var(--primary-ink)}.btn.primary:hover{filter:brightness(.95)}
+.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}.btn.ghost:hover{border-color:var(--text-2)}
+.ctrls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.search{flex:1;min-width:200px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;transition:.2s;box-shadow:var(--card-shadow)}
+.search:focus-within{border-color:var(--primary)}
+.search input{flex:1;border:none;outline:none;background:none;font-family:var(--b);font-size:13px;color:var(--text)}
+.chip{font-family:var(--m);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-3);cursor:pointer;transition:.18s}
+.chip:hover{color:var(--text-2)}.chip.on{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.sort{font-family:var(--m);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;outline:none}
+.feed{display:flex;flex-direction:column;gap:11px}
+.item{border:1px solid var(--border);border-radius:12px;padding:14px 16px;border-left:4px solid var(--text-3);transition:.18s;background:var(--surface)}
+.item:hover{box-shadow:var(--card-shadow)}
+.item[data-sev="crit"]{border-left-color:var(--crit)}.item[data-sev="high"]{border-left-color:var(--accent)}.item[data-sev="med"]{border-left-color:var(--primary)}.item[data-sev="low"]{border-left-color:var(--text-3)}
+.itop{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px}
+.badge{font-family:var(--m);font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:6px}
+.badge.crit{background:var(--crit-bg);color:var(--crit)}.badge.high{background:var(--high-bg);color:var(--high)}.badge.med{background:var(--med-bg);color:var(--med)}.badge.low{background:var(--low-bg);color:var(--low)}
+.region{font-family:var(--m);font-size:9px;color:var(--text-3)}
+.item h4{font-family:var(--d);font-weight:700;font-size:16px;line-height:1.2;margin-bottom:4px}
+.item p{font-size:13px;color:var(--text-2)}
+.item .ang{font-size:12px;color:var(--text-2);margin-top:6px}.item .ang b{color:var(--primary)}
+.copy{margin-top:9px;font-family:var(--m);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;transition:.18s}
+.copy:hover{color:var(--primary);border-color:var(--primary)}
+.empty{display:none;text-align:center;padding:26px;color:var(--text-3);font-family:var(--m);font-size:12px}
+.heat{display:flex;flex-direction:column;gap:13px}
+.heat-row .hh{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}.heat-row .hh .sc{font-family:var(--d);font-weight:800}
+.heat-track{height:9px;border-radius:99px;background:var(--surface-3);overflow:hidden}.heat-fill{height:100%;border-radius:99px;transition:width .6s}
+.trig-row{display:flex;gap:13px;padding:12px 0;border-bottom:1px solid var(--border-2)}.trig-row:last-child{border:none}
+.trig-row .mo{font-family:var(--m);font-size:10px;font-weight:700;color:#fff;border-radius:6px;padding:5px 9px;height:fit-content;letter-spacing:.04em;min-width:44px;text-align:center}
+.trig-row .tt{font-family:var(--d);font-weight:700;font-size:15px}.trig-row p{font-size:12px;color:var(--text-2);margin-top:2px}
+.land-card{padding:16px 18px}.land-card .lh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.land-card .nm{font-family:var(--d);font-weight:700;font-size:17px}.land-card p{font-size:12px;color:var(--text-2)}
+.tg{font-family:var(--m);font-size:8px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.tg.crit{background:var(--crit-bg);color:var(--crit)}.tg.accent{background:var(--high-bg);color:var(--high)}.tg.watch{background:var(--watch-bg);color:var(--watch)}.tg.mono{background:var(--mono-bg);color:var(--mono)}.tg.opp{background:var(--opp-bg);color:var(--opp)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-family:var(--m);font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+th:hover,th.sorted{color:var(--primary)}th .ar{opacity:.4}th.sorted .ar{opacity:1}
+td{padding:12px;border-bottom:1px solid var(--border-2);color:var(--text-2)}tr:hover td{background:var(--surface-3)}
+td.brand{font-family:var(--d);font-weight:700;font-size:15px;color:var(--text)}td.brand .sku{display:block;font-family:var(--b);font-weight:400;font-size:11px;color:var(--text-3)}
+td.num{font-family:var(--m)}td.per{font-family:var(--d);font-weight:800;font-size:18px}
+.leader td{background:var(--med-bg)!important}.leader td.brand,.leader td.per{color:var(--primary)}
+.lead-tag{font-family:var(--m);font-size:8px;font-weight:700;background:var(--primary);color:var(--primary-ink);padding:3px 7px;border-radius:5px;margin-left:8px}
+.srclink{font-family:var(--m);font-size:10px;color:var(--primary);text-decoration:none}.srclink:hover{text-decoration:underline}
+.insight{margin-top:14px;font-family:var(--m);font-size:12px;color:var(--text-2);line-height:1.6;padding:14px;border:1px dashed var(--border);border-radius:10px}.insight b{color:var(--primary)}
+.launch{display:flex;flex-direction:column;gap:10px}
+.lrow{display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.lrow.flagged{border-style:dashed}
+.lrow .ld{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.lrow .ld.crit{background:var(--crit)}.lrow .ld.accent{background:var(--accent)}.lrow .ld.watch{background:var(--watch)}.lrow .ld.mono{background:var(--text-3)}.lrow .ld.opp{background:var(--opp)}
+.lrow .linfo{min-width:0}.lrow .lname{font-family:var(--d);font-weight:700;font-size:15px}
+.lrow .flag{font-family:var(--m);font-size:8px;color:var(--primary);background:var(--med-bg);padding:2px 6px;border-radius:4px;letter-spacing:.04em}
+.lrow .lsub{font-family:var(--b);font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+.lrow .lsp{flex:1}.lrow .lwhen{font-family:var(--m);font-size:10px;color:var(--text-3);white-space:nowrap}
+.vbadge{font-family:var(--m);font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 8px;border-radius:6px;background:var(--opp-bg);color:var(--opp);white-space:nowrap}
+.vbadge.warn{background:var(--watch-bg);color:var(--watch)}
+.evt-hero{padding:0;overflow:hidden}
+.evt-hero .ehead{padding:18px 20px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.evt-hero .when{font-family:var(--m);font-size:10px;letter-spacing:.07em;color:var(--text-3);text-transform:uppercase}
+.evt-hero h3{font-family:var(--d);font-weight:800;font-size:28px;line-height:1;margin-top:4px}
+.evt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border-2)}
+.evt-stat{background:var(--surface);padding:15px 18px}.evt-stat .l{font-family:var(--m);font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)}
+.evt-stat .v{font-family:var(--d);font-weight:800;font-size:24px;color:var(--primary);margin-top:4px}.evt-stat .v.sm{font-size:16px;color:var(--text)}
+.evt-body{padding:18px 20px}.evt-body .q{font-family:var(--d);font-style:italic;font-weight:700;font-size:15px;color:var(--text-2);margin-bottom:14px;line-height:1.4}
+.evt-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sec-evt{display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px}
+.sec-evt .score{font-family:var(--d);font-weight:800;font-size:14px;color:var(--primary);background:var(--med-bg);border-radius:8px;padding:8px 11px;flex-shrink:0}
+.sec-evt .info{flex:1}.sec-evt .info .nm{font-family:var(--d);font-weight:700;font-size:16px}
+.sec-evt .info .meta{font-family:var(--m);font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em}.sec-evt .info p{font-size:12px;color:var(--text-2);margin-top:4px}
+.brief{padding:18px 20px;margin-bottom:13px}.brief .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:9px}
+.brief h3{font-family:var(--d);font-weight:800;font-size:21px;line-height:1.1}
+.prio{font-family:var(--m);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 11px;border-radius:99px;white-space:nowrap}
+.prio.urgent{background:var(--crit-bg);color:var(--crit)}.prio.med{background:var(--watch-bg);color:var(--watch)}.prio.low{background:var(--surface-3);color:var(--text-3)}
+.brief p{color:var(--text-2);font-size:14px;margin-bottom:12px}.brief .metric{font-family:var(--m);font-size:11px;color:var(--text-3);margin-bottom:13px}
+.brief-actions{display:flex;gap:10px;flex-wrap:wrap}
+.gen-grid{grid-template-columns:repeat(4,1fr);margin-top:8px}
+.gen-btn{font-family:var(--m);font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;text-align:left;padding:14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;transition:.18s;box-shadow:var(--card-shadow)}
+.gen-btn:hover{border-color:var(--primary);color:var(--primary);transform:translateY(-2px)}
+.quote{padding:18px 22px;border-left:3px solid var(--primary)}.quote p{font-family:var(--d);font-weight:700;font-size:17px;font-style:italic;color:var(--text);line-height:1.35}
+.mini{grid-template-columns:1fr 1fr;margin-top:16px}.counter{padding:18px 20px}
+.counter .lab{font-family:var(--m);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}.counter .val{font-family:var(--d);font-weight:800;font-size:36px;line-height:1;margin-top:8px}
+.foot{max-width:1280px;margin:30px auto 0;padding:18px 28px;border-top:1px solid var(--border);font-family:var(--m);font-size:10px;color:var(--text-3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--primary);color:var(--primary-ink);font-family:var(--m);font-size:12px;font-weight:700;padding:13px 22px;border-radius:10px;transition:.25s;z-index:200}.toast.show{transform:translateX(-50%) translateY(0)}
+@media(max-width:980px){.tabs{order:3;width:100%;justify-content:flex-start;overflow-x:auto}.kpis,.two,.land,.gen-grid,.mini{grid-template-columns:1fr}.wrap{padding:20px 16px 60px}nav{padding:12px 16px}}
 </style>
 </head>
 <body>
-<div class="ticker-wrap">
-  <div class="ticker-label"><span class="pulse"></span>LIVE</div>
-  <div style="overflow:hidden;flex:1">
-    <div class="ticker-track">
-      {TICKER_HTML}
-    </div>
-  </div>
-</div>
+<div class="demo">REDESIGN PREVIEW · <b>OSMO_RADAR</b> — light default, dark toggle (top-right ◐). Generated __TODAY__.</div>
+<div class="ticker"><div class="lbl">● LIVE</div><div class="track">__TICKER__</div></div>
 <nav>
-  <div class="nav-brand">
-    <span class="brand-name">Electrolyte Intelligence</span>
-    <span class="brand-sub">Daily Market Briefing · {TODAY}</span>
+  <div class="brand"><div class="rad">◉</div><span class="nm">OSMO<b>_RADAR</b></span><span class="live">((•))</span></div>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-p="radar">Radar</button>
+    <button class="tab" data-p="intel">Intel</button>
+    <button class="tab" data-p="events">Events<span class="n">__EVENTS_CT__</span></button>
+    <button class="tab" data-p="briefs">Briefs</button>
+    <button class="tab" data-p="global">Global</button>
   </div>
-  <ul class="nav-links">
-    <li><a href="#" onclick="switchTab('india',document.querySelectorAll('.tab-btn')[0]);return false">Intelligence</a></li>
-    <li><a href="#" onclick="switchTab('events',document.querySelectorAll('.tab-btn')[1]);return false">Events</a></li>
-    <li><a href="#" onclick="switchTab('entrants',document.querySelectorAll('.tab-btn')[2]);return false">Launches</a></li>
-    <li><a href="#" onclick="switchTab('competitors',document.querySelectorAll('.tab-btn')[3]);return false">Competitors</a></li>
-    <li><a href="#" onclick="switchTab('actions',document.querySelectorAll('.tab-btn')[5]);return false">Actions</a></li>
-  </ul>
-  <div class="nav-right">
-    <span class="live-pill"><span class="live-dot"></span>Live</span>
-    <span class="date-pill">{TODAY}</span>
-    <button class="refresh-btn" onclick="location.reload()"><span class="spin">↻</span> Refresh</button>
+  <div class="nav-r">
+    <button class="tgl" id="tgl" onclick="toggleTheme()" title="Toggle light/dark">◐</button>
+    <span class="pill live"><span class="d"></span>LIVE</span><span class="pill date">__TODAY__</span>
   </div>
 </nav>
-<div class="alert-banner">
-  <span class="alert-tag">⚠ Alert</span>
-  <span class="alert-text"><strong>Daily briefing updated:</strong> {TODAY} · {RADAR_COUNT} new signals on Radar · {EVENTS_COUNT} sport events tracked · {ENTRANTS_COUNT} verified launches in database.</span>
+<div class="wrap">
+
+  <section class="panel on" id="p-radar">
+    <div class="sechead"><div><div class="ey"><span class="d"></span>Real-time intel</div><h2>Market Radar</h2></div><span class="rt">Web-searched · 07:00 IST</span></div>
+    <div class="alert" onclick="go('intel')"><span class="ic">⚠</span><span class="tx">__RADAR_CT__ NEW SIGNALS ON RADAR — unverified, review before acting</span><span class="ar">›</span></div>
+    <div class="grid kpis">
+      <div class="card kpi p"><div class="lab"><span>India 2026</span><span class="cagr">↗ 13.9%</span></div><div class="val">$81M</div><div class="sub">CAGR · growing fast</div></div>
+      <div class="card kpi g"><div class="lab"><span>Global category</span><span class="cagr">↗ 8.4%</span></div><div class="val">$43B</div><div class="sub">zero-sugar +41% share</div></div>
+      <div class="card kpi r"><div class="lab">Critical signals</div><div class="val">__CRIT_CT__</div><div class="sub">today</div></div>
+      <div class="card kpi o"><div class="lab">Osmo ₹/serving</div><div class="val">₹__OSMO_PER__</div><div class="sub">cheapest premium</div></div>
+    </div>
+    <div class="ctrls">
+      <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C8398" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="q" placeholder="Search India moments…" oninput="applyFeed()"></label>
+      <div id="radar-chips" style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="chip on" data-sev="all" onclick="chipSel(this,'radar-chips','applyFeed')">All</button>
+        <button class="chip" data-sev="crit" onclick="chipSel(this,'radar-chips','applyFeed')">Critical</button>
+        <button class="chip" data-sev="high" onclick="chipSel(this,'radar-chips','applyFeed')">High</button>
+        <button class="chip" data-sev="med" onclick="chipSel(this,'radar-chips','applyFeed')">Medium</button>
+        <button class="chip" data-sev="low" onclick="chipSel(this,'radar-chips','applyFeed')">Low</button>
+      </div>
+      <select class="sort" id="sort" onchange="applyFeed()"><option value="severity">Sort · Severity</option><option value="az">Sort · A–Z</option></select>
+    </div>
+    <div class="grid two">
+      <div>
+        <div class="subhead">Today's India Moments <span class="tagn" id="cnt"></span></div>
+        <div class="feed" id="feed">__INDIA_FEED__</div>
+        <div class="empty" id="empty">No matches — clear filters.</div>
+      </div>
+      <div>
+        <div class="subhead">Opportunity Heat Map</div><div class="card"><div class="heat">__HEAT__</div></div>
+        <div class="subhead">Upcoming Triggers</div><div class="card">__TRIG__</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-intel">
+    <div class="sechead"><div><div class="ey"><span class="d"></span>Competitive landscape</div><h2>Competitor Intelligence</h2></div><span class="rt">Last 90 days</span></div>
+    <div class="subhead">India Competitor Landscape</div>
+    <div class="grid land">__LAND__</div>
+    <div class="subhead">Price Efficiency Benchmarking <span class="tagn">verified __PRICING_VERIFIED__ · re-check monthly</span></div>
+    <div class="card"><table id="tbl"><thead><tr>
+      <th data-k="brand">Brand / SKU <span class="ar">↕</span></th>
+      <th data-k="price" data-n="1">Price <span class="ar">↕</span></th>
+      <th data-k="per" data-n="1">Per serve <span class="ar">↕</span></th>
+      <th>Source</th>
+    </tr></thead><tbody id="tb">__PRICING__</tbody></table>
+      <div class="insight"><b>INSIGHT:</b> Osmo is the cheapest premium option per serve at ₹__OSMO_PER__ — undercutting every listed competitor while keeping the science depth they lack. The lead depends on the current sale price holding; re-check monthly.</div>
+    </div>
+    <div class="subhead">Market Entry Stream <span class="tagn">verified launches + radar-flagged</span></div>
+    <div class="ctrls">
+      <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C8398" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="q2" placeholder="Search launches…" oninput="applyLaunch()"></label>
+      <div id="intel-chips" style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="chip on" data-th="all" onclick="chipSel(this,'intel-chips','applyLaunch')">All</button>
+        <button class="chip" data-th="disruptor" onclick="chipSel(this,'intel-chips','applyLaunch')">Disruptor</button>
+        <button class="chip" data-th="high-alert" onclick="chipSel(this,'intel-chips','applyLaunch')">High-alert</button>
+        <button class="chip" data-th="watch" onclick="chipSel(this,'intel-chips','applyLaunch')">Watch</button>
+        <button class="chip" data-th="monitor" onclick="chipSel(this,'intel-chips','applyLaunch')">Monitor</button>
+      </div>
+    </div>
+    <div class="launch" id="launch">__LAUNCHES__</div>
+    <div class="empty" id="empty2">No matches — clear filters.</div>
+    <div class="subhead">AI Competitor Moves <span class="tagn">web-searched · this week</span></div>
+    <div class="feed">__COMPAI__</div>
+  </section>
+
+  <section class="panel" id="p-events">
+    <div class="sechead"><div><div class="ey"><span class="d"></span>Live intelligence</div><h2>Events Tracker</h2></div><span class="rt">__EVENTS_CT__ events · __TODAY__</span></div>
+    __EVENTS__
+  </section>
+
+  <section class="panel" id="p-briefs">
+    <div class="sechead"><div><div class="ey"><span class="d"></span>Live strategic briefing</div><h2>Priority Actions</h2></div><span class="rt">Osmo Team · This Week</span></div>
+    __BRIEFS__
+    <div class="subhead">Generate Custom Brief <span class="tagn">opens in Claude</span></div>
+    <div class="grid gen-grid">
+      <button class="gen-btn" onclick="brief('weekly_brief')">↗ Full weekly brief</button>
+      <button class="gen-btn" onclick="brief('events_brief')">↗ 90-day events plan</button>
+      <button class="gen-btn" onclick="brief('entrants_brief')">↗ Competitor response</button>
+      <button class="gen-btn" onclick="brief('heatwave_carousel')">↗ Heatwave social copy</button>
+      <button class="gen-btn" onclick="brief('ipl_reel')">↗ IPL reel script</button>
+      <button class="gen-btn" onclick="brief('ors_upgrade')">↗ ORS upgrade pitch</button>
+      <button class="gen-btn" onclick="brief('cognitive_series')">↗ Cognitive hydration series</button>
+      <button class="gen-btn" onclick="brief('athlete_tieup')">↗ Athlete partnership pitch</button>
+    </div>
+    <div class="grid mini">
+      <div class="card counter"><div class="lab">◉ Radar signals</div><div class="val">__RADAR_CT__ <span style="font-size:13px;color:var(--text-3);font-family:var(--m)">FLAGGED</span></div></div>
+      <div class="card counter"><div class="lab">✓ Verified launches</div><div class="val">__ENTRANTS_CT__ <span style="font-size:13px;color:var(--text-3);font-family:var(--m)">TRACKED</span></div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-global">
+    <div class="sechead"><div><div class="ey"><span class="d"></span>Web-searched live</div><h2>Global Trends</h2></div><span class="rt">__TODAY__</span></div>
+    <div class="grid two">
+      <div class="feed">__GLOBAL__</div>
+      <div class="card quote"><p>Global hydration category at $43B; India $81M growing 13.9% CAGR — zero-sugar formats now ~41% of new launches.</p></div>
+    </div>
+  </section>
+
 </div>
-<section class="hero">
-  <div class="fade-in">
-    <div class="hero-kicker"><span class="kicker-dot"></span> Daily intelligence briefing</div>
-    <h1>What's moving the <em>electrolyte</em> category in India today.</h1>
-    <p class="hero-desc">Real-time market signals, India incidents, combat &amp; hybrid sport events, new entrant launches, and actionable marketing briefs — built for the Osmo team to move fast.</p>
-  </div>
-  <div class="hero-stats fade-in delay-2">
-    <div class="hero-stat-row">
-      <div class="hero-stat-left"><span class="stat-label">India market 2026</span><span class="stat-trend">↑ 13.9% CAGR</span></div>
-      <div class="stat-right"><svg class="spark green" viewBox="0 0 80 28"><path class="fill" d="M0,22 L10,20 L20,17 L30,15 L40,10 L50,8 L60,5 L70,4 L80,2 L80,28 L0,28 Z"/><path d="M0,22 L10,20 L20,17 L30,15 L40,10 L50,8 L60,5 L70,4 L80,2"/></svg><span class="stat-value">$81M</span></div>
-    </div>
-    <div class="hero-stat-row">
-      <div class="hero-stat-left"><span class="stat-label">Global category</span><span class="stat-trend">↑ 8.4% CAGR</span></div>
-      <div class="stat-right"><svg class="spark" viewBox="0 0 80 28"><path class="fill" d="M0,18 L10,16 L20,14 L30,15 L40,12 L50,10 L60,8 L70,6 L80,5 L80,28 L0,28 Z"/><path d="M0,18 L10,16 L20,14 L30,15 L40,12 L50,10 L60,8 L70,6 L80,5"/></svg><span class="stat-value">$43B</span></div>
-    </div>
-    <div class="hero-stat-row">
-      <div class="hero-stat-left"><span class="stat-label">Combat / hybrid events tracked</span><span class="stat-trend">{EVENTS_COUNT} live</span></div>
-      <div class="stat-right"><svg class="spark" viewBox="0 0 80 28"><path class="fill" d="M0,20 L8,18 L16,16 L24,14 L32,12 L40,10 L48,11 L56,8 L64,6 L72,5 L80,4 L80,28 L0,28 Z"/><path d="M0,20 L8,18 L16,16 L24,14 L32,12 L40,10 L48,11 L56,8 L64,6 L72,5 L80,4"/></svg><span class="stat-value sm">{EVENTS_COUNT}</span></div>
-    </div>
-    <div class="hero-stat-row">
-      <div class="hero-stat-left"><span class="stat-label">New launches · 90 days</span><span class="stat-trend dn">{ENTRANTS_COUNT} verified</span></div>
-      <div class="stat-right"><svg class="spark red" viewBox="0 0 80 28"><path class="fill" d="M0,24 L10,22 L20,18 L30,15 L40,13 L50,9 L60,7 L70,5 L80,3 L80,28 L0,28 Z"/><path d="M0,24 L10,22 L20,18 L30,15 L40,13 L50,9 L60,7 L70,5 L80,3"/></svg><span class="stat-value sm">{ENTRANTS_COUNT}</span></div>
-    </div>
-  </div>
-</section>
-<div class="main">
-  <div class="content-area fade-in delay-3">
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('india', this)">India Moments</button>
-      <button class="tab-btn" onclick="switchTab('events', this)">Events <span class="badge-num">{EVENTS_COUNT}</span></button>
-      <button class="tab-btn" onclick="switchTab('entrants', this)">New Entrants <span class="badge-num">{ENTRANTS_COUNT}</span></button>
-      <button class="tab-btn" onclick="switchTab('competitors', this)">Competitors</button>
-      <button class="tab-btn" onclick="switchTab('global', this)">Global Trends</button>
-      <button class="tab-btn" onclick="switchTab('actions', this)">This Week</button>
-    </div>
-    <div class="panel active" id="panel-india">
-      <div class="panel-section-title">Today's India moments<span class="section-count">web-searched live · {TODAY}</span></div>
-      {INDIA_HTML}
-    </div>
-    <div class="panel" id="panel-events">
-      <div class="panel-section">
-        <div class="panel-section-title">
-          Combat &amp; hybrid sports calendar
-          <span class="section-count">{EVENTS_COUNT} events tracked · data reviewed {TODAY}</span>
-        </div>
-        <div class="filter-bar" id="events-filter">
-          <button class="filter-chip active" data-filter="all">All</button>
-          <button class="filter-chip" data-filter="combat">Combat</button>
-          <button class="filter-chip" data-filter="hybrid">Hybrid</button>
-        </div>
-        <div class="events-grid" id="events-grid">{EVENTS_HTML}</div>
-      </div>
-    </div>
-    <div class="panel" id="panel-entrants">
-      <div class="radar-section">
-        <div class="radar-banner">
-          <span class="radar-icon">⚡ Radar · flagged this week</span>
-          <span class="radar-tagline"><strong>AI-flagged signals from the last 7-14 days.</strong> Unverified — review and promote to the verified list below when confirmed.</span>
-        </div>
-        {RADAR_HTML}
-      </div>
-      <div class="panel-section">
-        <div class="panel-section-title">
-          Verified launches
-          <span class="section-count">{ENTRANTS_COUNT} confirmed · last 90 days</span>
-        </div>
-        {PROMOTED_NOTICE}
-        <div class="filter-bar" id="entrants-filter">
-          <button class="filter-chip active" data-filter="all">All</button>
-          <button class="filter-chip" data-filter="week">This Week</button>
-          <button class="filter-chip" data-filter="month">This Month</button>
-          <button class="filter-chip" data-filter="disruptor">Disruptor</button>
-          <button class="filter-chip" data-filter="high-alert">High Alert</button>
-          <button class="filter-chip" data-filter="monitor">Monitor</button>
-        </div>
-        {PROMOTED_RADAR_HTML}
-        <div class="entrants-list" id="entrants-list">{ENTRANTS_HTML}</div>
-      </div>
-    </div>
-    <div class="panel" id="panel-competitors">
-      <div class="panel-section">
-        <div class="panel-section-title">India competitor landscape</div>
-        <div class="comp-grid">{LANDSCAPE_HTML}</div>
-      </div>
-      <div class="panel-section">
-        <div class="panel-section-title">Competitor pricing — matched SKUs<span class="section-count">verified {PRICING_VERIFIED} · 6 brands</span></div>
-        {PRICING_HTML}
-      </div>
-      <div class="panel-section">
-        <div class="panel-section-title">Competitor moves · new this week<span class="section-count">web-searched live · {TODAY}</span></div>
-        {COMPETITOR_HTML}
-      </div>
-    </div>
-    <div class="panel" id="panel-global">
-      <div class="panel-section">
-        <div class="panel-section-title">Global category intelligence<span class="section-count">web-searched live · {TODAY}</span></div>
-        {GLOBAL_HTML}
-      </div>
-    </div>
-    <div class="panel" id="panel-actions">
-      <div class="panel-section">
-        <div class="panel-section-title">This week's prioritised actions · {TODAY}</div>
-        {ACTIONS_HTML}
-      </div>
-      <div class="panel-section">
-        <div class="panel-section-title">Generate custom brief</div>
-        <div class="ai-output" id="actions-ai-output"></div>
-        <button class="ai-fetch-btn" onclick="brief('weekly_brief')">↗ Generate full weekly brief in Claude</button>
-      </div>
-    </div>
-  </div>
-  <aside class="sidebar fade-in delay-4">
-    <div class="sidebar-block">
-      <div class="sidebar-title">Opportunity heat map</div>
-      {HEATMAP_HTML}
-    </div>
-    <div class="sidebar-block">
-      <div class="sidebar-title">Upcoming triggers</div>
-      {TRIGGERS_HTML}
-    </div>
-    <div class="sidebar-block">
-      <div class="sidebar-title">Quick actions</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="ai-fetch-btn" style="font-size:10px;padding:10px 14px" onclick="brief('weekly_brief')">Generate full weekly brief →</button>
-        <button class="ai-fetch-btn" style="font-size:10px;padding:10px 14px" onclick="brief('events_brief')">90-day events activation plan →</button>
-        <button class="ai-fetch-btn" style="font-size:10px;padding:10px 14px" onclick="brief('entrants_brief')">Competitor response plan →</button>
-        <button class="ai-fetch-btn" style="font-size:10px;padding:10px 14px" onclick="brief('heatwave_carousel')">Heatwave social copy →</button>
-      </div>
-    </div>
-  </aside>
-</div>
-<footer>
-  <div class="footer-txt">Electrolyte Intelligence · Internal use · Auto-refreshed daily 07:00 IST</div>
-  <div class="footer-txt">Generated {TODAY} · {MODEL.upper()}</div>
-</footer>
+<div class="foot"><span>Electrolyte Intelligence · Internal use · Auto-refreshed daily 07:00 IST</span><span>Generated __TODAY__ · __MODEL__</span></div>
+<div class="toast" id="toast">Copied to clipboard</div>
 <script>
-  {BRIEF_JS}
-  function switchTab(tab, btn) {{
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    const panel = document.getElementById('panel-' + tab);
-    if (panel) panel.classList.add('active');
-  }}
-  function toggleCard(head) {{ head.nextElementSibling.classList.toggle('open'); }}
-  function toggleEvent(card) {{ card.classList.toggle('expanded'); }}
-  function toggleEntrant(card) {{ card.classList.toggle('expanded'); }}
-  function brief(type) {{
-    const msg = BRIEF_PROMPTS[type] || 'Give me a detailed marketing brief for Osmo electrolytes India.';
-    window.open('https://claude.ai/new?q=' + encodeURIComponent(msg), '_blank');
-  }}
-  document.querySelectorAll('#events-filter .filter-chip').forEach(chip => {{
-    chip.addEventListener('click', () => {{
-      document.querySelectorAll('#events-filter .filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      const f = chip.dataset.filter;
-      document.querySelectorAll('#events-grid .event-card').forEach(card => {{
-        const sportType = card.dataset.sportType;
-        let show = true;
-        if (f === 'combat') show = (sportType === 'combat');
-        else if (f === 'hybrid') show = (sportType === 'hybrid');
-        card.style.display = show ? '' : 'none';
-      }});
-    }});
-  }});
-  document.querySelectorAll('#entrants-filter .filter-chip').forEach(chip => {{
-    chip.addEventListener('click', () => {{
-      document.querySelectorAll('#entrants-filter .filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      const f = chip.dataset.filter;
-      document.querySelectorAll('#entrants-list .entrant-row').forEach(row => {{
-        const threat = row.dataset.threat;
-        const bucket = row.dataset.bucket;
-        let show = true;
-        if (f === 'week') show = (bucket === 'week');
-        else if (f === 'month') show = (bucket === 'week' || bucket === 'month');
-        else if (f === 'disruptor') show = (threat === 'disruptor');
-        else if (f === 'high-alert') show = (threat === 'high-alert');
-        else if (f === 'monitor') show = (threat === 'monitor');
-        row.classList.toggle('hidden', !show);
-      }});
-    }});
-  }});
-  // NOTE: Daily India / Global / Competitor / Radar content is generated
-  // server-side by generate.py using Anthropic's web_search tool, then baked
-  // into this page. The old in-browser "Search now" buttons were removed —
-  // they could never work on static hosting (no API key in the browser).
+const BRIEF_PROMPTS=__BRIEF_JSON__;
+function toggleTheme(){var h=document.documentElement;var t=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',t);try{localStorage.setItem('osmo-theme',t);}catch(e){}document.getElementById('tgl').textContent=t==='dark'?'☀':'◐';}
+(function(){try{var t=localStorage.getItem('osmo-theme')||'light';document.getElementById('tgl');}catch(e){}})();
+function go(p){var b=document.querySelector('.tab[data-p="'+p+'"]');if(b)b.click();window.scrollTo({top:0,behavior:'smooth'});}
+document.getElementById('tabs').onclick=function(e){var b=e.target.closest('.tab');if(!b)return;document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});b.classList.add('on');document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});document.getElementById('p-'+b.dataset.p).classList.add('on');};
+function chipSel(el,group,fn){document.querySelectorAll('#'+group+' .chip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');window[fn]();}
+function applyFeed(){
+  var q=document.getElementById('q').value.toLowerCase();
+  var chip=document.querySelector('#radar-chips .chip.on').dataset.sev;
+  var sort=document.getElementById('sort').value;
+  var feed=document.getElementById('feed');var items=[].slice.call(feed.querySelectorAll('.item'));
+  var vis=0;
+  items.forEach(function(it){var show=(chip==='all'||it.dataset.sev===chip)&&(!q||it.dataset.text.indexOf(q)>=0);it.style.display=show?'':'none';if(show)vis++;});
+  if(sort==='severity')items.sort(function(a,b){return a.dataset.rank-b.dataset.rank;});
+  else if(sort==='az')items.sort(function(a,b){return a.dataset.title.localeCompare(b.dataset.title);});
+  items.forEach(function(it){feed.appendChild(it);});
+  document.getElementById('empty').style.display=vis?'none':'block';
+  document.getElementById('cnt').textContent=vis+' showing';
+}
+function applyLaunch(){
+  var q=document.getElementById('q2').value.toLowerCase();
+  var chip=document.querySelector('#intel-chips .chip.on').dataset.th;
+  var rows=[].slice.call(document.querySelectorAll('#launch .lrow'));var vis=0;
+  rows.forEach(function(r){var show=(chip==='all'||r.dataset.th===chip)&&(!q||r.dataset.text.indexOf(q)>=0);r.style.display=show?'':'none';if(show)vis++;});
+  document.getElementById('empty2').style.display=vis?'none':'block';
+}
+var psk='per',psd=1;
+document.querySelectorAll('#tbl th[data-k]').forEach(function(th){th.onclick=function(){var k=th.dataset.k;if(k===psk)psd*=-1;else{psk=k;psd=1;}sortTable();};});
+function sortTable(){
+  var tb=document.getElementById('tb');var rows=[].slice.call(tb.querySelectorAll('tr'));
+  var num=document.querySelector('#tbl th[data-k="'+psk+'"]').dataset.n;
+  rows.sort(function(a,b){var x=a.dataset[psk],y=b.dataset[psk];if(num){return (parseFloat(x)-parseFloat(y))*psd;}return x.localeCompare(y)*psd;});
+  rows.forEach(function(r){tb.appendChild(r);});
+  document.querySelectorAll('#tbl th').forEach(function(t){t.classList.toggle('sorted',t.dataset.k===psk);});
+}
+function brief(t){window.open('https://claude.ai/new?q='+encodeURIComponent(BRIEF_PROMPTS[t]||'Give me a marketing brief for Osmo electrolytes India.'),'_blank');}
+function cp(e,t){e.stopPropagation();try{navigator.clipboard.writeText('Osmo — '+t);}catch(err){}var x=document.getElementById('toast');x.classList.add('show');setTimeout(function(){x.classList.remove('show');},1500);}
+applyFeed();
 </script>
 </body>
-</html>"""
+</html>'''
 
-# ── WRITE OUTPUT ──────────────────────────────────────────────────────────────
-out = os.path.join(os.path.dirname(__file__), "index.html")
-with open(out, "w", encoding="utf-8") as f:
+# ════════════════════════════════════════════════════════════════════════════
+# RENDER HELPERS — OSMO_RADAR dashboard (light default + dark toggle)
+# ════════════════════════════════════════════════════════════════════════════
+
+URG = {"critical":"crit","high":"high","medium":"med","low":"low"}
+URG_RANK = {"critical":0,"high":1,"medium":2,"low":3}
+HEAT_HEX = {"red":"var(--crit)","amber":"var(--watch)","gold":"var(--accent)","green":"var(--accent-2)"}
+DOT_HEX  = {"red":"var(--crit)","gold":"var(--accent)","green":"var(--accent-2)","amber":"var(--watch)"}
+# threat -> (css class, label)
+THREAT = {
+    "high":("crit","High threat"), "disruptor":("crit","Disruptor"),
+    "high-alert":("accent","High-alert"), "pressure":("accent","Price pressure"),
+    "watch":("watch","Watch"), "monitor":("mono","Monitor"),
+    "opportunity":("opp","Opportunity"),
+}
+
+def _feed_card(item, kind="india"):
+    sev = URG.get(item.get("urgency","medium"),"med")
+    rank = URG_RANK.get(item.get("urgency","medium"),2)
+    text = (item.get("title","")+" "+item.get("what","")+" "+item.get("tag","")).lower().replace('"',"")
+    angle = item.get("angle","")
+    extra = ""
+    if kind=="india":
+        extra = f'<div class="ang"><b>Angle:</b> {esc(angle)}</div>' if angle else ""
+        action = esc(item.get("action","weekly_brief"))
+        btn = f'<button class="copy" onclick="brief(\'{action}\')">Get content brief →</button>'
+    elif kind=="global":
+        extra = f'<div class="ang"><b>Angle:</b> {esc(angle)}</div>' if angle else ""
+        btn = f'<button class="copy" onclick="cp(event,\'{esc(item.get("title",""))}\')">Copy insight</button>'
+    else:  # competitor
+        extra = f'<div class="ang"><b>White space:</b> {esc(item.get("gap",""))}</div>' if item.get("gap") else ""
+        btn = f'<button class="copy" onclick="brief(\'competitor_alert\')">Response brief →</button>'
+    return f"""<div class="item" data-sev="{sev}" data-rank="{rank}" data-text="{esc(text)}" data-title="{esc(item.get('title','').lower())}">
+      <div class="itop"><span class="badge {sev}">{esc(item.get('urgency','signal'))}</span><span class="region">{esc(item.get('tag',''))}</span></div>
+      <h4>{esc(item.get('title',''))}</h4>
+      <p>{esc(item.get('what',''))}</p>{extra}
+      {btn}</div>"""
+
+def radar_feed_html(items):
+    if not items: return '<div class="empty" style="display:block">No India moments returned this morning.</div>'
+    return "\n".join(_feed_card(i,"india") for i in items)
+
+def global_feed_html(items):
+    if not items: return '<div class="empty" style="display:block">No global trends returned this morning.</div>'
+    return "\n".join(_feed_card(i,"global") for i in items)
+
+def compai_feed_html(items):
+    if not items: return '<div class="empty" style="display:block">No competitor moves flagged this morning.</div>'
+    return "\n".join(_feed_card(i,"competitor") for i in items)
+
+def heat_html(items):
+    out=[]
+    for it in items:
+        c = HEAT_HEX.get(it.get("color_hint","gold"),"var(--accent)")
+        s = int(it.get("score",50))
+        out.append(f'<div class="heat-row"><div class="hh"><span>{esc(it.get("label",""))}</span><span class="sc" style="color:{c}">{s}</span></div><div class="heat-track"><div class="heat-fill" style="width:{s}%;background:{c}"></div></div></div>')
+    return "\n".join(out)
+
+def trig_html(items):
+    out=[]
+    for it in items:
+        c = DOT_HEX.get(it.get("dot_color","gold"),"var(--accent)")
+        now = "now" if it.get("month_label","").upper()=="NOW" else ""
+        out.append(f'<div class="trig-row {now}"><span class="mo" style="background:{c}">{esc(it.get("month_label",""))}</span><div><div class="tt">{esc(it.get("title",""))}</div><p>{esc(it.get("description",""))}</p></div></div>')
+    return "\n".join(out)
+
+def land_html(brands):
+    out=[]
+    for b in brands:
+        cls,label = THREAT.get(b.get("threat","monitor"),("mono","Monitor"))
+        out.append(f'<div class="card land-card"><div class="lh"><span class="nm">{esc(b.get("name",""))}</span><span class="tg {cls}">{esc(label)}</span></div><p>{esc(b.get("desc",""))}</p></div>')
+    return "\n".join(out)
+
+def pricing_html(rows):
+    enr=[]
+    for r in rows:
+        per = r["price"]/max(r.get("servings",1),1)
+        enr.append((r,per))
+    enr.sort(key=lambda x:(not x[0].get("is_osmo"), x[1]))
+    out=[]
+    for r,per in enr:
+        leader = "leader" if r.get("is_osmo") else ""
+        tag = '<span class="lead-tag">LEADER</span>' if r.get("is_osmo") else ""
+        strike = ""
+        if r.get("mrp") and r["price"]<r["mrp"]:
+            pct = round((1-r["price"]/r["mrp"])*100)
+            strike = f' <span style="color:var(--text-3);text-decoration:line-through;font-size:11px">₹{r["mrp"]}</span> <span style="color:var(--accent-2);font-size:10px;font-family:var(--m)">-{pct}%</span>'
+        out.append(f'<tr class="{leader}" data-brand="{esc(r["brand"].lower())}" data-price="{r["price"]}" data-per="{per:.2f}">'
+                   f'<td class="brand">{esc(r["brand"])}{tag}<span class="sku">{esc(r.get("sku",""))} · {esc(r.get("pack",""))}</span></td>'
+                   f'<td class="num">₹{r["price"]}{strike}</td>'
+                   f'<td class="per">₹{round(per)}</td>'
+                   f'<td><a class="srclink" href="{esc(r.get("link","#"))}" target="_blank" rel="noopener">{esc(r.get("source",""))} ↗</a></td></tr>')
+    return "\n".join(out)
+
+def _verified_badge(ent):
+    v = ent.get("verified")
+    if v:
+        try:
+            vo = datetime.strptime(v,"%Y-%m-%d").strftime("%d %b %y")
+        except Exception:
+            vo = v
+        return f'<span class="vbadge">✓ verified {vo}</span>'
+    return '<span class="vbadge warn">⚠ needs re-verify</span>'
+
+def launches_html(entrants, radar):
+    out=[]
+    for e in entrants:
+        cls,_ = THREAT.get(e.get("threat","monitor"),("mono","Monitor"))
+        when = format_event_date(e["date"]) if e.get("date") else "—"
+        text = (e.get("brand","")+" "+e.get("parent","")+" "+e.get("summary","")).lower().replace('"',"")
+        out.append(f'<div class="lrow" data-th="{esc(e.get("threat","monitor"))}" data-text="{esc(text)}">'
+                   f'<span class="ld {cls}"></span>'
+                   f'<div class="linfo"><div class="lname">{esc(e.get("brand",""))}</div><div class="lsub">{esc(e.get("parent",""))}</div></div>'
+                   f'<span class="lsp"></span><span class="lwhen">{esc(when)}</span>{_verified_badge(e)}'
+                   f'<a class="srclink" href="{esc(e.get("verify","#"))}" target="_blank" rel="noopener" style="margin-left:10px">verify ↗</a></div>')
+    for r in radar:
+        cls,_ = THREAT.get(r.get("threat","watch"),("watch","Watch"))
+        days = r.get("days_ago_estimate",0)
+        when = f"~{days}d ago" if days else "this week"
+        text = (r.get("brand","")+" "+r.get("what","")).lower().replace('"',"")
+        out.append(f'<div class="lrow flagged" data-th="{esc(r.get("threat","watch"))}" data-text="{esc(text)}">'
+                   f'<span class="ld {cls}"></span>'
+                   f'<div class="linfo"><div class="lname">{esc(r.get("brand",""))} <span class="flag">⚡ RADAR</span></div><div class="lsub">{esc(r.get("what","")[:90])}</div></div>'
+                   f'<span class="lsp"></span><span class="lwhen">{esc(when)}</span><span class="vbadge warn">⚠ flagged · unverified</span></div>')
+    return "\n".join(out)
+
+def events_full_html(events):
+    if not events: return ""
+    def evt_block(ev, hero=False):
+        score = ev.get("hyd_score",0)
+        if ev.get("date"):
+            when = f'{format_event_date(ev["date"])} · {esc(ev.get("venue","").split("·")[-1].strip()[:24])}'
+            d = days_until(ev["date"]); cd = f"in {d} days" if d>0 else ("today" if d==0 else "past")
+        else:
+            when = esc(ev.get("date_note","Date pending")); cd = "TBD"
+        tentative = '<span class="tg watch">Tentative</span>' if ev.get("tentative") else '<span class="tg opp">Confirmed</span>'
+        if hero:
+            return f"""<div class="card evt-hero">
+      <div class="ehead"><div><div class="when">{when} · {cd}</div><h3>{esc(ev.get("name",""))}</h3></div>{tentative}</div>
+      <div class="evt-stats">
+        <div class="evt-stat"><div class="l">Hydration fit</div><div class="v">{score}/10</div></div>
+        <div class="evt-stat"><div class="l">Sport</div><div class="v sm">{esc(ev.get("sport_label",""))}</div></div>
+        <div class="evt-stat"><div class="l">Organiser</div><div class="v sm">{esc(ev.get("organiser","")[:18])}</div></div>
+      </div>
+      <div class="evt-body"><div class="q">{esc(ev.get("hydration",""))}</div>
+        <div class="evt-actions"><button class="btn primary" onclick="brief('events_brief')">Athlete tie-up brief →</button>
+        <a class="btn ghost" href="{esc(ev.get("verify","#"))}" target="_blank" rel="noopener">Verify event ↗</a></div></div></div>"""
+        return f"""<div class="card sec-evt"><span class="score">{score}/10</span>
+      <div class="info"><div class="meta">{esc(ev.get("sport_label",""))} · {when} · {cd}</div>
+      <div class="nm">{esc(ev.get("name",""))}</div><p>{esc(ev.get("hydration",""))}</p></div></div>"""
+    parts=[evt_block(events[0],hero=True)]
+    parts.append('<div class="subhead">All tracked events <span class="tagn">hydration-fit scored</span></div>')
+    parts += [evt_block(e) for e in events[1:]]
+    return "\n".join(parts)
+
+def briefs_html(items):
+    out=[]
+    for it in items:
+        timing = it.get("timing","This week")
+        prio = "urgent" if timing=="Do today" else ("med" if timing=="This week" else "low")
+        out.append(f"""<div class="card brief"><div class="top"><h3>{esc(it.get("title",""))}</h3><span class="prio {prio}">{esc(timing)}</span></div>
+      <p>{esc(it.get("description",""))}</p>
+      <div class="metric">{esc(it.get("channel",""))} · {esc(it.get("tone",""))}</div>
+      <div class="brief-actions"><button class="btn primary" onclick="brief('{esc(it.get("brief_type","weekly_brief"))}')">Generate copy ⚡</button>
+      <button class="btn ghost" onclick="cp(event,'{esc(it.get("title",""))}')">Copy title</button></div></div>""")
+    return "\n".join(out)
+
+def ticker_html(india, global_, radar):
+    items=[]
+    for i in india[:2]:
+        items.append(f'<div class="it">{esc(i.get("title","")[:60])} <b class="hot">{esc(i.get("urgency","").upper())}</b></div>')
+    for r in radar[:2]:
+        items.append(f'<div class="it">NEW · {esc(r.get("brand",""))} <b class="hot">{esc(r.get("threat","watch").upper())}</b></div>')
+    items += [
+        '<div class="it">India 2026 <b class="up">$81M</b> ↑ 13.9% CAGR</div>',
+        '<div class="it">Global <b>$43B</b></div>',
+        '<div class="it">Zero-sugar <b class="up">↑ 41% share</b></div>',
+    ]
+    return "".join(items+items)
+
+# ── computed KPI values ─────────────────────────────────────────────────────
+_crit_ct = len([i for i in india_items if i.get("urgency")=="critical"])
+_osmo = next((r for r in PRICING_DATA if r.get("is_osmo")), None)
+_osmo_per = round(_osmo["price"]/max(_osmo.get("servings",1),1)) if _osmo else 0
+BRIEF_JSON = json.dumps(BRIEF_PROMPTS)
+
+# ── assemble fragments ──────────────────────────────────────────────────────
+REPL = {
+    "__TODAY__": TODAY,
+    "__MODEL__": MODEL.upper(),
+    "__PRICING_VERIFIED__": PRICING_VERIFIED,
+    "__TICKER__": ticker_html(india_items, global_items, radar_items),
+    "__CRIT_CT__": str(_crit_ct),
+    "__OSMO_PER__": str(_osmo_per),
+    "__RADAR_CT__": str(len(radar_items)),
+    "__EVENTS_CT__": str(len(EVENTS_DATA)),
+    "__ENTRANTS_CT__": str(len(ENTRANTS_DATA)),
+    "__INDIA_FEED__": radar_feed_html(india_items),
+    "__HEAT__": heat_html(heatmap),
+    "__TRIG__": trig_html(triggers),
+    "__LAND__": land_html(landscape_items),
+    "__PRICING__": pricing_html(PRICING_DATA),
+    "__LAUNCHES__": launches_html(ENTRANTS_DATA, radar_items),
+    "__COMPAI__": compai_feed_html(competitor_items),
+    "__EVENTS__": events_full_html(EVENTS_DATA),
+    "__BRIEFS__": briefs_html(actions),
+    "__GLOBAL__": global_feed_html(global_items),
+    "__BRIEF_JSON__": BRIEF_JSON,
+}
+
+html = TEMPLATE
+for k,v in REPL.items():
+    html = html.replace(k, v)
+
+# ── WRITE OUTPUT ─────────────────────────────────────────────────────────────
+out_path = os.path.join(os.path.dirname(__file__), "index.html")
+with open(out_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"✅ index.html written ({len(html):,} bytes)")
-print(f"   Date: {TODAY}")
-print(f"   India insights: {len(india_items)} · Global: {len(global_items)} · Competitor AI: {len(competitor_items)}")
-print(f"   Actions: {len(actions)} · Heatmap: {len(heatmap)} · Triggers: {len(triggers)}")
-print(f"   Radar (new launches): {len(radar_items)}")
-print(f"   Curated: {len(EVENTS_DATA)} events, {len(ENTRANTS_DATA)} entrants, {len(PRICING_DATA)} pricing rows")
+print(f"   Date: {TODAY} · Model: {MODEL}")
+print(f"   India: {len(india_items)} · Global: {len(global_items)} · CompAI: {len(competitor_items)} · Radar: {len(radar_items)}")
+print(f"   Events: {len(EVENTS_DATA)} · Entrants: {len(ENTRANTS_DATA)} · Landscape: {len(landscape_items)}")
